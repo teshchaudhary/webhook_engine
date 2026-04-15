@@ -1,0 +1,58 @@
+# dependencies
+/node_modules
+
+# build output
+/dist
+/build
+
+# coverage
+/coverage
+/.nyc_output
+
+# env files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# runtime/temp
+.temp
+.tmp
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# editors / OS
+.DS_Store
+/.idea
+.project
+.classpath
+.settings/
+.c9/
+*.launch
+*.sublime-workspace
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# reports
+report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
+
+# local notes/docs not intended for commit
+plan.md
+setup.md
+Pasted markdown.md
+.codex

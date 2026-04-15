@@ -1,0 +1,80 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Tenant {
+  id        String         @id @default(uuid())
+  name      String
+  secretKey String
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+  endpoints Endpoint[]
+  events    WebhookEvent[]
+}
+
+model Endpoint {
+  id         String     @id @default(uuid())
+  tenantId   String
+  url        String
+  isActive   Boolean    @default(true)
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+  tenant     Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  deliveries Delivery[]
+
+  @@index([tenantId, isActive])
+}
+
+model WebhookEvent {
+  id             String        @id @default(uuid())
+  tenantId       String
+  idempotencyKey String
+  type           String
+  payload        Json
+  status         EventStatus   @default(PENDING)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  tenant         Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  deliveries     Delivery[]
+
+  @@unique([tenantId, idempotencyKey])
+  @@index([tenantId, createdAt])
+}
+
+model Delivery {
+  id              String         @id @default(uuid())
+  eventId         String
+  endpointId      String
+  status          DeliveryStatus @default(PENDING)
+  attempts        Int            @default(0)
+  lastAttemptAt   DateTime?
+  nextAttemptAt   DateTime?
+  httpStatusCode  Int?
+  responseSnippet String?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  event           WebhookEvent   @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  endpoint        Endpoint       @relation(fields: [endpointId], references: [id], onDelete: Cascade)
+
+  @@index([eventId])
+  @@index([endpointId])
+  @@index([status, nextAttemptAt])
+}
+
+enum EventStatus {
+  PENDING
+  PROCESSING
+  DONE
+  FAILED
+}
+
+enum DeliveryStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  DLQ
+}
