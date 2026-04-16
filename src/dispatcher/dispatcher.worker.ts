@@ -3,16 +3,20 @@ import { Logger } from '@nestjs/common';
 import { Job } from 'bullmq';
 import axios from 'axios';
 import { PrismaService } from '../../prisma/prisma.service';
+import { ConfigService } from '../common/config.service';
 
 @Processor('webhook-deliveries')
 export class DispatcherWorker extends WorkerHost {
   private readonly logger = new Logger(DispatcherWorker.name);
 
-  constructor(private readonly prisma: PrismaService) {
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly config: ConfigService,
+  ) {
     super();
   }
 
-  async process(job: Job<{ deliveryId: string }>): Promise<any> {
+  async process(job: Job<{ deliveryId: string }>): Promise<void> {
     const { deliveryId } = job.data;
     
     this.logger.log(`Processing delivery job for delivery ID: ${deliveryId}`);
@@ -35,31 +39,29 @@ export class DispatcherWorker extends WorkerHost {
       return;
     }
 
-    // 1. Mark as PROCESSING
     const attempts = delivery.attempts + 1;
     await this.prisma.delivery.update({
       where: { id: deliveryId },
       data: { 
-        status: 'PROCESSING',
+        status: 'PROCESSING' as any,
         attempts, 
         lastAttemptAt: new Date() 
       },
     });
 
     try {
-      // 2. HTTP Dispatch via Axios
+      
       const response = await axios.post(
         delivery.endpoint.url,
-        delivery.event.payload as any,
+        delivery.event.payload as Record<string, unknown>,
         {
           headers: {
             'Content-Type': 'application/json',
           },
-          timeout: 10000, // 10 second timeout
+          timeout: 10000,
         },
       );
 
-      // 3. Mark as SUCCESS
       await this.prisma.delivery.update({
         where: { id: deliveryId },
         data: {
@@ -72,28 +74,53 @@ export class DispatcherWorker extends WorkerHost {
       });
 
       this.logger.log(`Delivery ${deliveryId} completed successfully (Status: ${response.status})`);
-    } catch (error: any) {
-      // 4. Mark as FAILED
-      const status = error.response?.status || error.status || 500;
-      const snippet = error.response?.data
-        ? (typeof error.response.data === 'string'
-            ? error.response.data.substring(0, 255)
-            : JSON.stringify(error.response.data).substring(0, 255))
-        : error.message.substring(0, 255);
+    } catch (error: unknown) {
+      const axiosError = error as { response?: { status?: number; data?: unknown }; status?: number; message?: string };
+      const status = axiosError.response?.status || axiosError.status || 500;
+      const snippet = axiosError.response?.data
+        ? (typeof axiosError.response.data === 'string'
+            ? axiosError.response.data.substring(0, 255)
+            : JSON.stringify(axiosError.response.data).substring(0, 255))
+        : (axiosError.message || 'Unknown error').substring(0, 255);
 
-      await this.prisma.delivery.update({
-        where: { id: deliveryId },
-        data: {
-          status: 'FAILED',
-          httpStatusCode: status,
-          responseSnippet: snippet,
-        },
-      });
+      const retryConfig = this.config.retryConfig;
+      if (attempts >= retryConfig.maxAttempts) {
+        await this.prisma.delivery.update({
+          where: { id: deliveryId },
+          data: {
+            status: 'DLQ',
+            httpStatusCode: status,
+            responseSnippet: snippet,
+          },
+        });
 
-      this.logger.warn(`Delivery ${deliveryId} failed: ${error.message}`);
-      
-      // Rethrow so BullMQ knows the job failed (vital for Phase 5: Retries & DLQ)
-      throw error;
+        this.logger.error(`Delivery ${deliveryId} moved to DLQ after ${attempts} attempts`);
+        
+        return;
+      } else {
+        const nextAttemptDelay = this.calculateBackoffDelay(attempts, retryConfig);
+        const nextAttemptAt = new Date(Date.now() + nextAttemptDelay);
+
+        await this.prisma.delivery.update({
+          where: { id: deliveryId },
+          data: {
+            status: 'FAILED',
+            httpStatusCode: status,
+            responseSnippet: snippet,
+            nextAttemptAt,
+          },
+        });
+
+        this.logger.warn(`Delivery ${deliveryId} failed (attempt ${attempts}/${retryConfig.maxAttempts}). Next retry at ${nextAttemptAt.toISOString()}`);
+        
+        throw error;
+      }
     }
+  }
+
+  private calculateBackoffDelay(attemptNumber: number, config: { baseDelay: number; maxDelay: number; backoffMultiplier: number }): number {
+    const delay = config.baseDelay * Math.pow(config.backoffMultiplier, attemptNumber - 1);
+    const jitter = delay * 0.25 * (Math.random() * 2 - 1);
+    return Math.min(Math.max(delay + jitter, 0), config.maxDelay);
   }
 }
