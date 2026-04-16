@@ -4,9 +4,10 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { PrismaModule } from '../prisma/prisma.module';
 import { EventsModule } from './events/events.module';
+import { DispatcherModule } from './dispatcher/dispatcher.module';
 
 @Module({
-  imports: [
+  imports:[
     PrismaModule,
     BullModule.forRoot({
       connection: {
@@ -15,6 +16,7 @@ import { EventsModule } from './events/events.module';
       },
     }),
     EventsModule,
+    DispatcherModule,
   ],
   controllers: [AppController],
   providers: [AppService],
