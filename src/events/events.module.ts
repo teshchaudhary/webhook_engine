@@ -7,6 +7,15 @@ import { EventsService } from './events.service';
   imports: [
     BullModule.registerQueue({
       name: 'webhook-deliveries',
+      defaultJobOptions: {
+        removeOnComplete: 100,
+        removeOnFail: 50,
+        attempts: 5,
+        backoff: {
+          type: 'exponential',
+          delay: 1000,
+        },
+      },
     }),
   ],
   controllers: [EventsController],
