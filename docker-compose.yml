@@ -1,0 +1,65 @@
+version: '3.8'
+
+services:
+  # ----------------------------------------
+  # PostgreSQL Database
+  # ----------------------------------------
+  postgres:
+    image: postgres:15-alpine
+    container_name: webhook-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: webhook_user
+      POSTGRES_PASSWORD: webhook_password
+      POSTGRES_DB: webhook_engine
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  # ----------------------------------------
+  # Redis (Message Broker & Cache)
+  # ----------------------------------------
+  redis:
+    image: redis:7-alpine
+    container_name: webhook-redis
+    restart: unless-stopped
+    ports:
+      - "6380:6379" # Maps host port 6380 to internal port 6379 as per your .env
+    volumes:
+      - redis_data:/data
+    command: redis-server --save 60 1 --loglevel warning
+
+  # ----------------------------------------
+  # Adminer (PostgreSQL UI)
+  # ----------------------------------------
+  adminer:
+    image: adminer:latest
+    container_name: webhook-adminer
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    depends_on:
+      - postgres
+
+  # ----------------------------------------
+  # Redis Commander (Redis UI)
+  # ----------------------------------------
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: webhook-redis-commander
+    restart: unless-stopped
+    environment:
+      # Automatically connects the UI to the "redis" service internally
+      - REDIS_HOSTS=local:redis:6379 
+    ports:
+      - "8081:8081"
+    depends_on:
+      - redis
+
+# ----------------------------------------
+# Persistent Volumes
+# ----------------------------------------
+volumes:
+  postgres_data:
+  redis_data:
