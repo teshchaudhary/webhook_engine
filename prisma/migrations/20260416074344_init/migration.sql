@@ -2,7 +2,7 @@
 CREATE TYPE "EventStatus" AS ENUM ('PENDING', 'PROCESSING', 'DONE', 'FAILED');
 
 -- CreateEnum
-CREATE TYPE "DeliveryStatus" AS ENUM ('PENDING', 'SUCCESS', 'FAILED', 'DLQ');
+CREATE TYPE "DeliveryStatus" AS ENUM ('PENDING', 'PROCESSING', 'SUCCESS', 'FAILED', 'DLQ');
 
 -- CreateTable
 CREATE TABLE "Tenant" (
@@ -62,10 +62,10 @@ CREATE TABLE "Delivery" (
 CREATE INDEX "Endpoint_tenantId_isActive_idx" ON "Endpoint"("tenantId", "isActive");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "WebhookEvent_tenantId_idempotencyKey_key" ON "WebhookEvent"("tenantId", "idempotencyKey");
+CREATE INDEX "WebhookEvent_tenantId_createdAt_idx" ON "WebhookEvent"("tenantId", "createdAt");
 
 -- CreateIndex
-CREATE INDEX "WebhookEvent_tenantId_createdAt_idx" ON "WebhookEvent"("tenantId", "createdAt");
+CREATE UNIQUE INDEX "WebhookEvent_tenantId_idempotencyKey_key" ON "WebhookEvent"("tenantId", "idempotencyKey");
 
 -- CreateIndex
 CREATE INDEX "Delivery_eventId_idx" ON "Delivery"("eventId");

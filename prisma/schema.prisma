@@ -74,6 +74,7 @@ enum EventStatus {
 
 enum DeliveryStatus {
   PENDING
+  PROCESSING
   SUCCESS
   FAILED
   DLQ

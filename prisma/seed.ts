@@ -1,67 +1,51 @@
-import 'dotenv/config';
-import { PrismaClient } from '@prisma/client';
-import { PrismaPg } from '@prisma/adapter-pg';
-
-const connectionString = process.env.DATABASE_URL;
-
-if (!connectionString) {
-  throw new Error('DATABASE_URL is not configured');
-}
-
-const adapter = new PrismaPg({ connectionString });
-const prisma = new PrismaClient({ adapter });
+import "dotenv/config";
+import { PrismaClient } from "@prisma/client";
+import { PrismaPg } from "@prisma/adapter-pg";
+import { randomBytes } from "crypto";
 
 async function main() {
-  console.log('Seeding database...');
-  const tenant = await prisma.tenant.upsert({
-    where: { id: 'test-tenant-123' },
-    update: {},
-    create: {
-      id: 'test-tenant-123',
-      name: 'Test Tenant',
-      secretKey: 'test-secret-key',
-    },
-  });
+  const connectionString = process.env.DATABASE_URL;
+  if (!connectionString) {
+    throw new Error("DATABASE_URL is missing from your .env file");
+  }
 
-  const endpoint1 = await prisma.endpoint.upsert({
-    where: { id: 'test-endpoint-1' },
-    update: {},
-    create: {
-      id: 'test-endpoint-1',
-      tenantId: tenant.id,
-      url: 'https://webhook.site/test-endpoint-1',
-      isActive: true,
-    },
-  });
+  const adapter = new PrismaPg({ connectionString } as any);
+  const prisma = new PrismaClient({ adapter });
 
-  const endpoint2 = await prisma.endpoint.upsert({
-    where: { id: 'test-endpoint-2' },
-    update: {},
-    create: {
-      id: 'test-endpoint-2',
-      tenantId: tenant.id,
-      url: 'https://webhook.site/test-endpoint-2',
-      isActive: true,
-    },
-  });
+  try {
+    const secretKey = `whsec_${randomBytes(32).toString("hex")}`;
 
-  console.log('Seed data created:');
-  console.log(`   Tenant: ${tenant.name} (${tenant.id})`);
-  console.log(`   Endpoints: ${endpoint1.url}, ${endpoint2.url}`);
-  console.log('');
-  console.log('You can now test the webhook API with:');
-  console.log(`   curl -X POST http://localhost:3000/api/v1/events \\`);
-  console.log(`     -H "Content-Type: application/json" \\`);
-  console.log(`     -H "Authorization: Bearer ${tenant.id}" \\`);
-  console.log(`     -H "Idempotency-Key: test-req-123" \\`);
-  console.log(`     -d '{"type": "user.created", "payload": {"userId": "user123"}}'`);
+    const tenant = await prisma.tenant.create({
+      data: {
+        name: "Tenant Name",
+        secretKey: secretKey,
+        endpoints: {
+          create: [
+            {
+              url: "http://localhost:3000/test-webhook",
+              isActive: true,
+            },
+          ],
+        },
+      },
+      include: {
+        endpoints: true,
+      },
+    });
+
+    console.log("Seed successful!\n");
+    console.log("=========================================");
+    console.log("Tenant Name :", tenant.name);
+    console.log("Tenant ID   :", tenant.id);
+    console.log("Secret Key  :", tenant.secretKey);
+    console.log("Endpoint URL:", tenant.endpoints[0].url);
+    console.log("=========================================\n");
+  } finally {
+    await prisma.$disconnect();
+  }
 }
 
-main()
-  .catch((e) => {
-    console.error('Seed failed:', e);
-    process.exit(1);
-  })
-  .finally(async () => {
-    await prisma.$disconnect();
-  });
+main().catch((e) => {
+  console.error("Error during seeding:", e);
+  process.exit(1);
+});
