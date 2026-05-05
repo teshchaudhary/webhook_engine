@@ -1,0 +1,383 @@
+{
+	"info": {
+		"_postman_id": "webhook-security-tests",
+		"name": "Webhook Security Tests",
+		"description": "Collection for testing webhook HMAC signature verification and replay protection",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Setup",
+			"item": [
+				{
+					"name": "Health Check - Test Receiver",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "http://localhost:3001/health",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "3001",
+							"path": [
+								"health"
+							]
+						},
+						"description": "Check if test webhook receiver is running"
+					},
+					"response": []
+				},
+				{
+					"name": "Health Check - Webhook Engine",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "http://localhost:3000/health",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "3000",
+							"path": [
+								"health"
+							]
+						},
+						"description": "Check if webhook engine is running"
+					},
+					"response": []
+				}
+			],
+			"description": "Setup and health checks"
+		},
+		{
+			"name": "Security Tests",
+			"item": [
+				{
+					"name": "Valid Webhook - Correct Signature",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							},
+							{
+								"key": "x-webhook-timestamp",
+								"value": "{{$timestamp}}000",
+								"type": "text"
+							},
+							{
+								"key": "x-webhook-signature",
+								"value": "{{$randomHexadecimal}}",
+								"type": "text",
+								"description": "Replace with actual HMAC signature for testing"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"type\": \"security.test\",\n  \"payload\": {\n    \"message\": \"Valid webhook with correct signature\",\n    \"timestamp\": \"{{$timestamp}}\"\n  }\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "http://localhost:3001/test-webhook",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "3001",
+							"path": [
+								"test-webhook"
+							]
+						},
+						"description": "Test webhook with valid HMAC signature (should return VALID: true)"
+					},
+					"response": []
+				},
+				{
+					"name": "Invalid Signature - Wrong Secret",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							},
+							{
+								"key": "x-webhook-timestamp",
+								"value": "{{$timestamp}}000",
+								"type": "text"
+							},
+							{
+								"key": "x-webhook-signature",
+								"value": "invalid_signature_here_1234567890abcdef",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"type\": \"security.test\",\n  \"payload\": {\n    \"message\": \"Invalid signature test\",\n    \"timestamp\": \"{{$timestamp}}\"\n  }\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "http://localhost:3001/test-webhook",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "3001",
+							"path": [
+								"test-webhook"
+							]
+						},
+						"description": "Test webhook with invalid signature (should return VALID: false)"
+					},
+					"response": []
+				},
+				{
+					"name": "Expired Timestamp - Replay Attack",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							},
+							{
+								"key": "x-webhook-timestamp",
+								"value": "{{$subtractTimestamp 360}}000",
+								"type": "text",
+								"description": "6 minutes ago (expired)"
+							},
+							{
+								"key": "x-webhook-signature",
+								"value": "old_timestamp_signature",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"type\": \"security.test\",\n  \"payload\": {\n    \"message\": \"Old timestamp - replay attack test\",\n    \"timestamp\": \"{{$timestamp}}\"\n  }\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "http://localhost:3001/test-webhook",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "3001",
+							"path": [
+								"test-webhook"
+							]
+						},
+						"description": "Test webhook with expired timestamp (should return VALID: false)"
+					},
+					"response": []
+				},
+				{
+					"name": "Missing Security Headers",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"type\": \"security.test\",\n  \"payload\": {\n    \"message\": \"No security headers test\",\n    \"timestamp\": \"{{$timestamp}}\"\n  }\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "http://localhost:3001/test-webhook",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "3001",
+							"path": [
+								"test-webhook"
+							]
+						},
+						"description": "Test webhook without security headers (should return VALID: false)"
+					},
+					"response": []
+				}
+			],
+			"description": "Test webhook security features"
+		},
+		{
+			"name": "Webhook Engine Integration",
+			"item": [
+				{
+					"name": "Send Event Through Webhook Engine",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer 07b3d63d-d24a-4487-bda8-f42e138c78ae",
+								"type": "text"
+							},
+							{
+								"key": "Idempotency-Key",
+								"value": "postman-test-{{$timestamp}}",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"type\": \"postman.test\",\n  \"payload\": {\n    \"message\": \"Testing webhook security via Postman\",\n    \"timestamp\": \"{{$timestamp}}\",\n    \"source\": \"Postman Collection\"\n  }\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "http://localhost:3000/api/v1/events",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "3000",
+							"path": [
+								"api",
+								"v1",
+								"events"
+							]
+						},
+						"description": "Send event through webhook engine - will deliver webhook with security headers to test receiver"
+					},
+					"response": []
+				}
+			],
+			"description": "Integration tests with webhook engine"
+		},
+		{
+			"name": "Utilities",
+			"item": [
+				{
+					"name": "Generate HMAC Signature",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"secretKey\": \"test-tenant-secret-key\",\n  \"timestamp\": \"{{$timestamp}}000\",\n  \"payload\": {\n    \"type\": \"test\",\n    \"message\": \"Generate signature for this payload\"\n  }\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "http://localhost:3002/generate-signature",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "3002",
+							"path": [
+								"generate-signature"
+							]
+						},
+						"description": "Utility to generate HMAC signatures (requires helper service)"
+					},
+					"response": []
+				}
+			],
+			"description": "Utility requests"
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					"// Generate current timestamp",
+					"pm.collectionVariables.set('timestamp', Math.floor(Date.now()));",
+					"",
+					"// Generate timestamp 6 minutes ago for replay attack test",
+					"pm.collectionVariables.set('subtractTimestamp', Math.floor(Date.now() - 360000));",
+					"",
+					"// Generate random hex for signature placeholder",
+					"pm.collectionVariables.set('randomHexadecimal', Array(64).fill(0).map(() => Math.floor(Math.random() * 16).toString(16)).join(''));",
+					"",
+					"// Log current timestamp for debugging",
+					"console.log('Current timestamp:', pm.collectionVariables.get('timestamp'));",
+					"console.log('6 minutes ago timestamp:', pm.collectionVariables.get('subtractTimestamp'));"
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					"// Log response for debugging",
+					"console.log('Response:', pm.response.json());",
+					"",
+					"// Check if webhook verification worked",
+					"if (pm.response.json().hasOwnProperty('valid')) {",
+					"    const isValid = pm.response.json().valid;",
+					"    console.log('Webhook verification result:', isValid ? 'VALID' : 'INVALID');",
+					"    ",
+					"    // Set test result as environment variable",
+					"    pm.environment.set('lastVerificationResult', isValid ? 'VALID' : 'INVALID');",
+					"}"
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "timestamp",
+			"value": ""
+		},
+		{
+			"key": "subtractTimestamp",
+			"value": ""
+		},
+		{
+			"key": "randomHexadecimal",
+			"value": ""
+		}
+	]
+}

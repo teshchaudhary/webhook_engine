@@ -6,11 +6,13 @@ import { PrismaModule } from '../prisma/prisma.module';
 import { ConfigModule } from './common/config.module';
 import { EventsModule } from './events/events.module';
 import { DispatcherModule } from './dispatcher/dispatcher.module';
+import { SecurityModule } from './security/security.module';
 
 @Module({
   imports:[
     ConfigModule,
     PrismaModule,
+    SecurityModule,
     BullModule.forRoot({
       connection: {
         host: process.env.REDIS_HOST,

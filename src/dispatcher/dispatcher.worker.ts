@@ -4,6 +4,7 @@ import { Job } from 'bullmq';
 import axios from 'axios';
 import { PrismaService } from '../../prisma/prisma.service';
 import { ConfigService } from '../common/config.service';
+import { WebhookSigningService } from '../security/webhook-signing.service';
 
 @Processor('webhook-deliveries')
 export class DispatcherWorker extends WorkerHost {
@@ -12,6 +13,7 @@ export class DispatcherWorker extends WorkerHost {
   constructor(
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
+    private readonly webhookSigning: WebhookSigningService,
   ) {
     super();
   }
@@ -25,7 +27,11 @@ export class DispatcherWorker extends WorkerHost {
       where: { id: deliveryId },
       include: {
         endpoint: true,
-        event: true,
+        event: {
+          include: {
+            tenant: true,
+          },
+        },
       },
     });
 
@@ -50,13 +56,18 @@ export class DispatcherWorker extends WorkerHost {
     });
 
     try {
-      
+      const securityHeaders = this.webhookSigning.generateWebhookHeaders(
+        delivery.event.tenant.secretKey,
+        delivery.event.payload,
+      );
+
       const response = await axios.post(
         delivery.endpoint.url,
         delivery.event.payload as Record<string, unknown>,
         {
           headers: {
             'Content-Type': 'application/json',
+            ...securityHeaders,
           },
           timeout: 10000,
         },

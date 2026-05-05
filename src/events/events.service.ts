@@ -20,7 +20,6 @@ export class EventsService {
     dto: CreateEventDto,
   ) {
     try {
-      // 1. Fetch tenant and active endpoints
       const tenant = await this.prisma.tenant.findUnique({
         where: { id: tenantId },
         include: { endpoints: { where: { isActive: true } } },
@@ -30,7 +29,6 @@ export class EventsService {
         throw new NotFoundException("Tenant not found");
       }
 
-      // 2. Perform DB Transaction (Event + Delivery Fan-out)
       const result = await this.prisma.$transaction(async (tx) => {
         const event = await tx.webhookEvent.create({
           data: {
@@ -42,7 +40,7 @@ export class EventsService {
         });
 
         const deliveriesData = tenant.endpoints.map((ep) => ({
-          id: randomUUID(), // Generate UUID here so we know the IDs for the queue
+          id: randomUUID(),
           eventId: event.id,
           endpointId: ep.id,
         }));
@@ -54,7 +52,6 @@ export class EventsService {
         return { event, deliveries: deliveriesData };
       });
 
-      // 3. Enqueue Jobs to BullMQ
       if (result.deliveries.length > 0) {
         const jobs = result.deliveries.map((delivery) => ({
           name: "deliver-webhook",
@@ -74,14 +71,10 @@ export class EventsService {
         deliveriesCreated: result.deliveries.length,
       };
     } catch (error: any) {
-      // Handle Unique Constraint (Idempotency)
-      if (
-        error.code === "P2002" &&
-        error.meta?.target?.includes("idempotencyKey")
-      ) {
+      if (error.code === "P2002") {
         this.logger.warn(`Idempotency hit for key: ${idempotencyKey}`);
         return {
-          message: "Event already accepted (Idempotent)",
+          message: "Event already accepted",
           idempotencyKey,
         };
       }

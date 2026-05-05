@@ -1,0 +1,79 @@
+import { Injectable } from '@nestjs/common';
+import * as crypto from 'crypto';
+
+export interface WebhookSignature {
+  timestamp: string;
+  signature: string;
+}
+
+export interface WebhookHeaders {
+  'x-webhook-timestamp': string;
+  'x-webhook-signature': string;
+}
+
+@Injectable()
+export class WebhookSigningService {
+
+  generateSignature(secretKey: string, timestamp: string, payload: unknown): string {
+    const payloadString = typeof payload === 'string' ? payload : JSON.stringify(payload);
+    const payloadToSign = `${timestamp}.${payloadString}`;
+    
+    return crypto
+      .createHmac('sha256', secretKey)
+      .update(payloadToSign, 'utf8')
+      .digest('hex');
+  }
+
+
+  generateWebhookSignature(secretKey: string, payload: unknown): WebhookSignature {
+    const timestamp = Date.now().toString();
+    const signature = this.generateSignature(secretKey, timestamp, payload);
+    
+    return {
+      timestamp,
+      signature,
+    };
+  }
+
+  generateWebhookHeaders(secretKey: string, payload: unknown): WebhookHeaders {
+    const { timestamp, signature } = this.generateWebhookSignature(secretKey, payload);
+    
+    return {
+      'x-webhook-timestamp': timestamp,
+      'x-webhook-signature': signature,
+    };
+  }
+
+
+  verifyWebhookSignature(
+    secretKey: string,
+    timestamp: string,
+    signature: string,
+    payload: unknown,
+    maxAgeSeconds: number = 300,
+  ): boolean {
+    const now = Date.now();
+    const timestampNum = parseInt(timestamp, 10);
+    
+    if (isNaN(timestampNum) || Math.abs(now - timestampNum) > maxAgeSeconds * 1000) {
+      return false;
+    }
+
+    const expectedSignature = this.generateSignature(secretKey, timestamp, payload);
+    
+    return this.constantTimeEqual(signature, expectedSignature);
+  }
+
+  private constantTimeEqual(a: string, b: string): boolean {
+    if (a.length !== b.length) {
+      return false;
+    }
+
+    let result = 0;
+    for (let i = 0; i < a.length; i++) {
+      result |= a.charCodeAt(i) ^ b.charCodeAt(i);
+    }
+
+    return result === 0;
+  }
+}
