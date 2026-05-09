@@ -7,6 +7,7 @@ import { ConfigModule } from './common/config.module';
 import { EventsModule } from './events/events.module';
 import { DispatcherModule } from './dispatcher/dispatcher.module';
 import { SecurityModule } from './security/security.module';
+import { DeliveriesModule } from './deliveries/deliveries.module';
 
 @Module({
   imports:[
@@ -21,6 +22,7 @@ import { SecurityModule } from './security/security.module';
     }),
     EventsModule,
     DispatcherModule,
+    DeliveriesModule,
   ],
   controllers: [AppController],
   providers: [AppService],

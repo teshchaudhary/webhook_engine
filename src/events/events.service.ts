@@ -4,6 +4,7 @@ import { Queue } from "bullmq";
 import { randomUUID } from "crypto";
 import { PrismaService } from "../../prisma/prisma.service";
 import { CreateEventDto } from "./dto/create-event.dto";
+import { QueryEventsDto } from "./dto/query-events.dto";
 
 @Injectable()
 export class EventsService {
@@ -80,5 +81,115 @@ export class EventsService {
       }
       throw error;
     }
+  }
+
+  async findAll(query: QueryEventsDto) {
+    const {
+      tenantId,
+      status,
+      type,
+      from,
+      to,
+      page = 1,
+      limit = 20,
+    } = query;
+
+    const skip = (page - 1) * limit;
+    const where: any = {};
+
+    if (tenantId) {
+      where.tenantId = tenantId;
+    }
+
+    if (status) {
+      where.status = status;
+    }
+
+    if (type) {
+      where.type = type;
+    }
+
+    if (from || to) {
+      where.createdAt = {};
+      if (from) {
+        where.createdAt.gte = new Date(from);
+      }
+      if (to) {
+        where.createdAt.lte = new Date(to);
+      }
+    }
+
+    const [events, total] = await Promise.all([
+      this.prisma.webhookEvent.findMany({
+        where,
+        include: {
+          tenant: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+          deliveries: {
+            select: {
+              id: true,
+              status: true,
+              endpoint: {
+                select: {
+                  id: true,
+                  url: true,
+                },
+              },
+            },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+      }),
+      this.prisma.webhookEvent.count({ where }),
+    ]);
+
+    return {
+      events,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+        hasNext: page * limit < total,
+        hasPrev: page > 1,
+      },
+    };
+  }
+
+  async findOne(id: string) {
+    const event = await this.prisma.webhookEvent.findUnique({
+      where: { id },
+      include: {
+        tenant: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+        deliveries: {
+          include: {
+            endpoint: {
+              select: {
+                id: true,
+                url: true,
+                isActive: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!event) {
+      throw new NotFoundException(`Event with ID ${id} not found`);
+    }
+
+    return event;
   }
 }
