@@ -1,3 +1,5 @@
+export const DELIVERY_CHANNEL = Symbol('DELIVERY_CHANNEL');
+
 export interface DeliveryResult {
   status: number;
   data: string;

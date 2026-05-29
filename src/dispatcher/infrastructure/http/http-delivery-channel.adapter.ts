@@ -1,9 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import axios from 'axios';
-import { DeliveryChannel, DeliveryResult } from '../interfaces/delivery-channel.interface';
+import {
+  DeliveryChannel,
+  DeliveryResult,
+} from '../../application/ports/delivery-channel.port';
 
 @Injectable()
-export class HttpDeliveryChannel implements DeliveryChannel {
+export class HttpDeliveryChannelAdapter implements DeliveryChannel {
   async send(
     url: string,
     payload: Record<string, unknown>,

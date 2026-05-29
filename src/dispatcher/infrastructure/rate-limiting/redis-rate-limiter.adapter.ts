@@ -1,14 +1,15 @@
 import { Injectable } from '@nestjs/common';
-import { RedisService } from '../../common/redis.service';
+import { RedisService } from '../../../common/redis.service';
+import { RateLimiter, RateLimitResult } from '../../application/ports/rate-limiter.port';
 
 @Injectable()
-export class RateLimiterService {
+export class RedisRateLimiterAdapter implements RateLimiter {
   constructor(private readonly redis: RedisService) {}
 
   async checkRateLimit(
     tenantId: string,
     limit: number,
-  ): Promise<{ exceeded: boolean; delayMs: number; currentRequests: number }> {
+  ): Promise<RateLimitResult> {
     const currentSecond = Math.floor(Date.now() / 1000);
     const rateLimitKey = `rate-limit:${tenantId}:${currentSecond}`;
 

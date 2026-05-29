@@ -1,15 +1,20 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { PrismaService } from '../../../prisma/prisma.service';
-import { ConfigService } from '../../common/config.service';
-import { WebhookSigningService } from '../../security/webhook-signing.service';
-import { DeliveryChannel } from '../interfaces/delivery-channel.interface';
+import { ConfigService } from '../../../common/config.service';
+import { WebhookSigningService } from '../../../security/webhook-signing.service';
+import { DeliveryChannel } from '../ports/delivery-channel.port';
+import {
+  DISPATCH_DELIVERIES_REPOSITORY,
+  DispatchDeliveriesRepository,
+} from '../ports/dispatch-deliveries.repository';
+import { Inject } from '@nestjs/common';
 
 @Injectable()
 export class DeliveryExecutorService {
   private readonly logger = new Logger(DeliveryExecutorService.name);
 
   constructor(
-    private readonly prisma: PrismaService,
+    @Inject(DISPATCH_DELIVERIES_REPOSITORY)
+    private readonly deliveriesRepository: DispatchDeliveriesRepository,
     private readonly config: ConfigService,
     private readonly webhookSigning: WebhookSigningService,
   ) {}
@@ -18,14 +23,7 @@ export class DeliveryExecutorService {
     const deliveryId = delivery.id;
     const attempts = delivery.attempts + 1;
 
-    await this.prisma.delivery.update({
-      where: { id: deliveryId },
-      data: {
-        status: 'PROCESSING' as any,
-        attempts,
-        lastAttemptAt: new Date(),
-      },
-    });
+    await this.deliveriesRepository.markProcessing(deliveryId, attempts);
 
     try {
       const securityHeaders = this.webhookSigning.generateWebhookHeaders(
@@ -39,14 +37,11 @@ export class DeliveryExecutorService {
         securityHeaders as any,
       );
 
-      await this.prisma.delivery.update({
-        where: { id: deliveryId },
-        data: {
-          status: 'SUCCESS',
-          httpStatusCode: response.status,
-          responseSnippet: response.data.substring(0, 255) || 'OK',
-        },
-      });
+      await this.deliveriesRepository.markSuccess(
+        deliveryId,
+        response.status,
+        response.data.substring(0, 255) || 'OK',
+      );
 
       this.logger.log(`Delivery ${deliveryId} completed successfully (Status: ${response.status})`);
     } catch (error: unknown) {
@@ -60,14 +55,11 @@ export class DeliveryExecutorService {
 
       const retryConfig = this.config.retryConfig;
       if (attempts >= retryConfig.maxAttempts) {
-        await this.prisma.delivery.update({
-          where: { id: deliveryId },
-          data: {
-            status: 'DLQ',
-            httpStatusCode: status,
-            responseSnippet: snippet,
-          },
-        });
+        await this.deliveriesRepository.markDeadLetter(
+          deliveryId,
+          status,
+          snippet,
+        );
 
         this.logger.error(`Delivery ${deliveryId} moved to DLQ after ${attempts} attempts`);
         return;
@@ -75,14 +67,11 @@ export class DeliveryExecutorService {
         const nextAttemptDelay = this.calculateBackoffDelay(attempts, retryConfig);
         const nextAttemptAt = new Date(Date.now() + nextAttemptDelay);
 
-        await this.prisma.delivery.update({
-          where: { id: deliveryId },
-          data: {
-            status: 'FAILED',
-            httpStatusCode: status,
-            responseSnippet: snippet,
-            nextAttemptAt,
-          },
+        await this.deliveriesRepository.markFailed({
+          id: deliveryId,
+          statusCode: status,
+          responseSnippet: snippet,
+          nextAttemptAt,
         });
 
         this.logger.warn(`Delivery ${deliveryId} failed (attempt ${attempts}/${retryConfig.maxAttempts}). Next retry at ${nextAttemptAt.toISOString()}`);
