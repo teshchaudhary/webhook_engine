@@ -12,15 +12,21 @@ import {
   ParseUUIDPipe,
   Query
 } from '@nestjs/common';
-import { EventsService } from './events.service';
 import { CreateEventDto } from './dto/create-event.dto';
 import { QueryEventsDto } from './dto/query-events.dto';
 import { plainToClass } from 'class-transformer';
 import { validate } from 'class-validator';
+import { IngestEventUseCase } from '../../application/use-cases/ingest-event.use-case';
+import { ListEventsUseCase } from '../../application/use-cases/list-events.use-case';
+import { GetEventUseCase } from '../../application/use-cases/get-event.use-case';
 
 @Controller('api/v1/events')
 export class EventsController {
-  constructor(private readonly eventsService: EventsService) {}
+  constructor(
+    private readonly ingestEvent: IngestEventUseCase,
+    private readonly listEvents: ListEventsUseCase,
+    private readonly getEvent: GetEventUseCase,
+  ) {}
 
   @Post()
   @HttpCode(HttpStatus.ACCEPTED)
@@ -38,7 +44,12 @@ export class EventsController {
       throw new UnauthorizedException('Missing Authorization header');
     }
 
-    return this.eventsService.ingestEvent(tenantId, idempotencyKey, dto);
+    return this.ingestEvent.execute({
+      tenantId,
+      idempotencyKey,
+      type: dto.type,
+      payload: dto.payload,
+    });
   }
 
   @Get()
@@ -57,11 +68,11 @@ export class EventsController {
       throw new BadRequestException(errorMessages);
     }
 
-    return this.eventsService.findAll(queryDto);
+    return this.listEvents.execute(queryDto);
   }
 
   @Get(':id')
   async findOne(@Param('id', ParseUUIDPipe) id: string) {
-    return this.eventsService.findOne(id);
+    return this.getEvent.execute(id);
   }
 }
