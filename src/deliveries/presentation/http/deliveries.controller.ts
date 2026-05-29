@@ -11,14 +11,20 @@ import {
   Headers,
   UnauthorizedException
 } from '@nestjs/common';
-import { DeliveriesService } from './deliveries.service';
 import { QueryDeliveriesDto } from './dto/query-deliveries.dto';
 import { plainToClass } from 'class-transformer';
 import { validate } from 'class-validator';
+import { GetDeliveryUseCase } from '../../application/use-cases/get-delivery.use-case';
+import { ListDeliveriesUseCase } from '../../application/use-cases/list-deliveries.use-case';
+import { ReplayDeliveryUseCase } from '../../application/use-cases/replay-delivery.use-case';
 
 @Controller('api/v1/deliveries')
 export class DeliveriesController {
-  constructor(private readonly deliveriesService: DeliveriesService) {}
+  constructor(
+    private readonly listDeliveries: ListDeliveriesUseCase,
+    private readonly getDelivery: GetDeliveryUseCase,
+    private readonly replayDelivery: ReplayDeliveryUseCase,
+  ) {}
 
   @Get()
   async findAll(@Query() query: any) {
@@ -36,12 +42,12 @@ export class DeliveriesController {
       throw new BadRequestException(errorMessages);
     }
 
-    return this.deliveriesService.findAll(queryDto);
+    return this.listDeliveries.execute(queryDto);
   }
 
   @Get(':id')
   async findOne(@Param('id', ParseUUIDPipe) id: string) {
-    return this.deliveriesService.findOne(id);
+    return this.getDelivery.execute(id);
   }
 
   @Post(':id/replay')
@@ -55,11 +61,11 @@ export class DeliveriesController {
       throw new UnauthorizedException('Missing Authorization header');
     }
 
-    const delivery = await this.deliveriesService.findOne(id);
+    const delivery = await this.getDelivery.execute(id);
     if (delivery.event.tenantId !== tenantId) {
       throw new UnauthorizedException('Access denied');
     }
 
-    return this.deliveriesService.replay(id);
+    return this.replayDelivery.execute(id);
   }
 }
