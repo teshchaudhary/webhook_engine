@@ -4,6 +4,7 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { PrismaModule } from '../prisma/prisma.module';
 import { ConfigModule } from './common/config.module';
+import { RedisModule } from './common/redis.module';
 import { EventsModule } from './events/events.module';
 import { DispatcherModule } from './dispatcher/dispatcher.module';
 import { SecurityModule } from './security/security.module';
@@ -14,6 +15,7 @@ import { DeliveriesModule } from './deliveries/deliveries.module';
     ConfigModule,
     PrismaModule,
     SecurityModule,
+    RedisModule,
     BullModule.forRoot({
       connection: {
         host: process.env.REDIS_HOST,

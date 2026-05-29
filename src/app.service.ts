@@ -2,12 +2,13 @@ import 'dotenv/config';
 import { Injectable, OnModuleDestroy } from '@nestjs/common';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '@prisma/client';
-import Redis from 'ioredis';
+import { RedisService } from './common/redis.service';
 
 @Injectable()
 export class AppService implements OnModuleDestroy {
   private prisma?: PrismaClient;
-  private redis?: Redis;
+
+  constructor(private readonly redis: RedisService) {}
 
   getRoot() {
     return {
@@ -38,7 +39,6 @@ export class AppService implements OnModuleDestroy {
 
   async onModuleDestroy() {
     await this.prisma?.$disconnect();
-    this.redis?.disconnect();
   }
 
   private async checkDatabase() {
@@ -73,14 +73,12 @@ export class AppService implements OnModuleDestroy {
     }
 
     try {
-      const redis = this.getRedisClient();
-
-      if (redis.status === 'wait') {
-        await redis.connect();
+      if (this.redis.status === 'wait') {
+        await this.redis.connect();
       }
 
-      const response = await redis.ping();
-      await redis.set('webhook-engine:boot', new Date().toISOString());
+      const response = await this.redis.ping();
+      await this.redis.set('webhook-engine:boot', new Date().toISOString());
 
       return {
         status: response === 'PONG' ? 'ok' : 'error',
@@ -106,19 +104,5 @@ export class AppService implements OnModuleDestroy {
     }
 
     return this.prisma;
-  }
-
-  private getRedisClient() {
-    if (!this.redis) {
-      this.redis = new Redis({
-        host: process.env.REDIS_HOST ?? '127.0.0.1',
-        port: Number(process.env.REDIS_PORT ?? 6379),
-        lazyConnect: true,
-        enableOfflineQueue: false,
-        maxRetriesPerRequest: 1,
-      });
-    }
-
-    return this.redis;
   }
 }
