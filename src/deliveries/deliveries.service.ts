@@ -1,4 +1,6 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { InjectQueue } from '@nestjs/bullmq';
+import { Queue } from 'bullmq';
 import { PrismaService } from '../../prisma/prisma.service';
 import { QueryDeliveriesDto } from './dto/query-deliveries.dto';
 import { DeliveryStatus } from '@prisma/client';
@@ -7,7 +9,10 @@ import { DeliveryStatus } from '@prisma/client';
 export class DeliveriesService {
   private readonly logger = new Logger(DeliveriesService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    @InjectQueue('webhook-deliveries') private readonly deliveryQueue: Queue,
+  ) {}
 
   async findAll(query: QueryDeliveriesDto) {
     const {
@@ -156,7 +161,9 @@ export class DeliveriesService {
       },
     });
 
-    this.logger.log(`Delivery ${id} reset for replay`);
+    await this.deliveryQueue.add('deliver-webhook', { deliveryId: id });
+
+    this.logger.log(`Delivery ${id} reset and enqueued for replay`);
 
     return updatedDelivery;
   }
