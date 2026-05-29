@@ -9,9 +9,10 @@ import { EventsModule } from './events/events.module';
 import { DispatcherModule } from './dispatcher/dispatcher.module';
 import { SecurityModule } from './security/security.module';
 import { DeliveriesModule } from './deliveries/deliveries.module';
+import { TenantsModule } from './tenants/tenants.module';
 
 @Module({
-  imports:[
+  imports: [
     ConfigModule,
     PrismaModule,
     SecurityModule,
@@ -25,6 +26,7 @@ import { DeliveriesModule } from './deliveries/deliveries.module';
     EventsModule,
     DispatcherModule,
     DeliveriesModule,
+    TenantsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
