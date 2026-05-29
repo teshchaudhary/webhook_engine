@@ -1,21 +1,33 @@
-import { Processor, WorkerHost } from '@nestjs/bullmq';
-import { Logger } from '@nestjs/common';
-import { Job } from 'bullmq';
+import { Processor, WorkerHost, InjectQueue } from '@nestjs/bullmq';
+import { Logger, OnModuleDestroy } from '@nestjs/common';
+import { Job, Queue } from 'bullmq';
 import axios from 'axios';
+import Redis from 'ioredis';
 import { PrismaService } from '../../prisma/prisma.service';
 import { ConfigService } from '../common/config.service';
 import { WebhookSigningService } from '../security/webhook-signing.service';
 
 @Processor('webhook-deliveries')
-export class DispatcherWorker extends WorkerHost {
+export class DispatcherWorker extends WorkerHost implements OnModuleDestroy {
   private readonly logger = new Logger(DispatcherWorker.name);
+  private readonly redis: Redis;
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
     private readonly webhookSigning: WebhookSigningService,
+    @InjectQueue('webhook-deliveries') private readonly deliveryQueue: Queue,
   ) {
     super();
+    this.redis = new Redis({
+      host: process.env.REDIS_HOST ?? '127.0.0.1',
+      port: Number(process.env.REDIS_PORT ?? 6379),
+      maxRetriesPerRequest: null,
+    });
+  }
+
+  async onModuleDestroy() {
+    this.redis.disconnect();
   }
 
   async process(job: Job<{ deliveryId: string }>): Promise<void> {
@@ -42,6 +54,38 @@ export class DispatcherWorker extends WorkerHost {
 
     if (delivery.status === 'SUCCESS' || delivery.status === 'DLQ') {
       this.logger.log(`Delivery ${deliveryId} is already ${delivery.status}, skipping.`);
+      return;
+    }
+
+    // Rate Limiting Check (per-tenant rate limit)
+    const tenant = delivery.event.tenant;
+    const tenantId = tenant.id;
+    const rateLimit = (tenant as any).rateLimit ?? 10;
+    const currentSecond = Math.floor(Date.now() / 1000);
+    const rateLimitKey = `rate-limit:${tenantId}:${currentSecond}`;
+
+    const currentRequests = await this.redis.incr(rateLimitKey);
+    if (currentRequests === 1) {
+      await this.redis.expire(rateLimitKey, 2);
+    }
+
+    if (currentRequests > rateLimit) {
+      const delay = Math.max(1000 - (Date.now() % 1000), 100);
+      const nextAttemptAt = new Date(Date.now() + delay);
+
+      this.logger.warn(
+        `Rate limit exceeded for tenant ${tenant.name} (${tenantId}). Current: ${currentRequests}, Limit: ${rateLimit}. Delaying delivery ${deliveryId} by ${delay}ms.`
+      );
+
+      await this.prisma.delivery.update({
+        where: { id: deliveryId },
+        data: {
+          status: 'PENDING',
+          nextAttemptAt,
+        },
+      });
+
+      await this.deliveryQueue.add('deliver-webhook', { deliveryId }, { delay });
       return;
     }
 
