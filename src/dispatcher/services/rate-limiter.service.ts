@@ -8,7 +8,7 @@ export class RateLimiterService {
   async checkRateLimit(
     tenantId: string,
     limit: number,
-  ): Promise<{ exceeded: boolean; delayMs: number }> {
+  ): Promise<{ exceeded: boolean; delayMs: number; currentRequests: number }> {
     const currentSecond = Math.floor(Date.now() / 1000);
     const rateLimitKey = `rate-limit:${tenantId}:${currentSecond}`;
 

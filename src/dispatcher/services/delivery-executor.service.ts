@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { PrismaService } from '../../prisma/prisma.service';
-import { ConfigService } from '../common/config.service';
-import { WebhookSigningService } from '../security/webhook-signing.service';
+import { PrismaService } from '../../../prisma/prisma.service';
+import { ConfigService } from '../../common/config.service';
+import { WebhookSigningService } from '../../security/webhook-signing.service';
 import { DeliveryChannel } from '../interfaces/delivery-channel.interface';
 
 @Injectable()
@@ -36,7 +36,7 @@ export class DeliveryExecutorService {
       const response = await channel.send(
         delivery.endpoint.url,
         delivery.event.payload as Record<string, unknown>,
-        securityHeaders,
+        securityHeaders as any,
       );
 
       await this.prisma.delivery.update({
