@@ -1,18 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import * as crypto from 'crypto';
-
-export interface WebhookSignature {
-  timestamp: string;
-  signature: string;
-}
-
-export interface WebhookHeaders {
-  'x-webhook-timestamp': string;
-  'x-webhook-signature': string;
-}
+import {
+  WebhookHeaders,
+  WebhookSignature,
+  WebhookSigner,
+} from './application/ports/webhook-signer.port';
 
 @Injectable()
-export class WebhookSigningService {
+export class WebhookSigningService implements WebhookSigner {
 
   generateSignature(secretKey: string, timestamp: string, payload: unknown): string {
     const payloadString = typeof payload === 'string' ? payload : JSON.stringify(payload);

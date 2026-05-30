@@ -1,6 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '../../../common/config.service';
-import { WebhookSigningService } from '../../../security/webhook-signing.service';
+import {
+  WEBHOOK_SIGNER,
+  WebhookSigner,
+} from '../../../security/application/ports/webhook-signer.port';
 import { DeliveryChannel } from '../ports/delivery-channel.port';
 import {
   DISPATCH_DELIVERIES_REPOSITORY,
@@ -16,7 +19,8 @@ export class DeliveryExecutorService {
     @Inject(DISPATCH_DELIVERIES_REPOSITORY)
     private readonly deliveriesRepository: DispatchDeliveriesRepository,
     private readonly config: ConfigService,
-    private readonly webhookSigning: WebhookSigningService,
+    @Inject(WEBHOOK_SIGNER)
+    private readonly webhookSigning: WebhookSigner,
   ) {}
 
   async execute(delivery: any, channel: DeliveryChannel): Promise<void> {
