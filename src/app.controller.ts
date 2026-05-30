@@ -12,11 +12,6 @@ export class AppController {
     return this.appService.getRoot();
   }
 
-  @Get("health")
-  getHealth() {
-    return this.appService.getHealth();
-  }
-
   @Post("test-webhook")
   @HttpCode(200)
   receiveTestWebhook(@Body() payload: any) {

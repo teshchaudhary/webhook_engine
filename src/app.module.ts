@@ -10,6 +10,7 @@ import { DispatcherModule } from './dispatcher/dispatcher.module';
 import { SecurityModule } from './security/security.module';
 import { DeliveriesModule } from './deliveries/deliveries.module';
 import { TenantsModule } from './tenants/tenants.module';
+import { HealthModule } from './health/health.module';
 
 @Module({
   imports: [
@@ -27,6 +28,7 @@ import { TenantsModule } from './tenants/tenants.module';
     DispatcherModule,
     DeliveriesModule,
     TenantsModule,
+    HealthModule,
   ],
   controllers: [AppController],
   providers: [AppService],
