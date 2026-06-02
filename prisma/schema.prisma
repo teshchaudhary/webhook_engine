@@ -7,39 +7,55 @@ datasource db {
 }
 
 model Tenant {
-  id        String         @id @default(uuid())
-  name      String
-  secretKey String
-  rateLimit Int            @default(10)
-  createdAt DateTime       @default(now())
-  updatedAt DateTime       @updatedAt
-  endpoints Endpoint[]
-  events    WebhookEvent[]
+  id         String         @id @default(uuid())
+  name       String
+  apiKeyHash String         @unique
+  rateLimit  Int            @default(10)
+  isActive   Boolean        @default(true)
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+  endpoints  Endpoint[]
+  events     WebhookEvent[]
 }
 
 model Endpoint {
-  id         String     @id @default(uuid())
-  tenantId   String
-  url        String
-  isActive   Boolean    @default(true)
-  createdAt  DateTime   @default(now())
-  updatedAt  DateTime   @updatedAt
-  tenant     Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  deliveries Delivery[]
+  id                      String                 @id @default(uuid())
+  tenantId                String
+  url                     String
+  secretKey               String
+  previousSecretKey       String?
+  previousSecretExpiresAt DateTime?
+  rateLimit               Int?
+  isActive                Boolean                @default(true)
+  createdAt               DateTime               @default(now())
+  updatedAt               DateTime               @updatedAt
+  tenant                  Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  subscriptions           EndpointSubscription[]
+  deliveries              Delivery[]
 
+  @@unique([tenantId, url])
   @@index([tenantId, isActive])
 }
 
+model EndpointSubscription {
+  endpointId String
+  eventType  String
+  endpoint   Endpoint @relation(fields: [endpointId], references: [id], onDelete: Cascade)
+
+  @@id([endpointId, eventType])
+  @@index([eventType])
+}
+
 model WebhookEvent {
-  id             String        @id @default(uuid())
+  id             String      @id @default(uuid())
   tenantId       String
   idempotencyKey String
   type           String
   payload        Json
-  status         EventStatus   @default(PENDING)
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
-  tenant         Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  status         EventStatus @default(PENDING)
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+  tenant         Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   deliveries     Delivery[]
 
   @@unique([tenantId, idempotencyKey])
@@ -47,23 +63,39 @@ model WebhookEvent {
 }
 
 model Delivery {
-  id              String         @id @default(uuid())
+  id              String           @id @default(uuid())
   eventId         String
   endpointId      String
-  status          DeliveryStatus @default(PENDING)
-  attempts        Int            @default(0)
+  status          DeliveryStatus   @default(PENDING)
+  attempts        Int              @default(0)
   lastAttemptAt   DateTime?
   nextAttemptAt   DateTime?
   httpStatusCode  Int?
   responseSnippet String?
-  createdAt       DateTime       @default(now())
-  updatedAt       DateTime       @updatedAt
-  event           WebhookEvent   @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  endpoint        Endpoint       @relation(fields: [endpointId], references: [id], onDelete: Cascade)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  event           WebhookEvent     @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  endpoint        Endpoint         @relation(fields: [endpointId], references: [id], onDelete: Cascade)
+  outboxJobs      DeliveryOutbox[]
 
   @@index([eventId])
   @@index([endpointId])
   @@index([status, nextAttemptAt])
+}
+
+model DeliveryOutbox {
+  id            String    @id @default(uuid())
+  deliveryId    String
+  availableAt   DateTime  @default(now())
+  attemptNumber Int       @default(1)
+  publishedAt   DateTime?
+  attempts      Int       @default(0)
+  lastError     String?
+  createdAt     DateTime  @default(now())
+  delivery      Delivery  @relation(fields: [deliveryId], references: [id], onDelete: Cascade)
+
+  @@index([publishedAt, availableAt])
+  @@index([deliveryId])
 }
 
 enum EventStatus {
@@ -79,4 +111,5 @@ enum DeliveryStatus {
   SUCCESS
   FAILED
   DLQ
+  CANCELLED
 }
