@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import * as crypto from 'crypto';
+import { ConfigService } from '../common/config.service';
 import {
   WebhookHeaders,
   WebhookSignature,
@@ -8,37 +9,34 @@ import {
 
 @Injectable()
 export class WebhookSigningService implements WebhookSigner {
-
   generateSignature(secretKey: string, timestamp: string, payload: unknown): string {
     const payloadString = typeof payload === 'string' ? payload : JSON.stringify(payload);
     const payloadToSign = `${timestamp}.${payloadString}`;
-    
+
     return crypto
-      .createHmac('sha256', secretKey)
+      .createHmac(this.config.securityConfig.signatureAlgorithm, secretKey)
       .update(payloadToSign, 'utf8')
       .digest('hex');
   }
 
-
   generateWebhookSignature(secretKey: string, payload: unknown): WebhookSignature {
     const timestamp = Date.now().toString();
     const signature = this.generateSignature(secretKey, timestamp, payload);
-    
+
     return {
       timestamp,
-      signature,
+      signature: `v1=${signature}`,
     };
   }
 
   generateWebhookHeaders(secretKey: string, payload: unknown): WebhookHeaders {
     const { timestamp, signature } = this.generateWebhookSignature(secretKey, payload);
-    
+
     return {
       'x-webhook-timestamp': timestamp,
       'x-webhook-signature': signature,
     };
   }
-
 
   verifyWebhookSignature(
     secretKey: string,
@@ -49,14 +47,15 @@ export class WebhookSigningService implements WebhookSigner {
   ): boolean {
     const now = Date.now();
     const timestampNum = parseInt(timestamp, 10);
-    
+
     if (isNaN(timestampNum) || Math.abs(now - timestampNum) > maxAgeSeconds * 1000) {
       return false;
     }
 
+    const suppliedSignature = signature.startsWith('v1=') ? signature.slice(3) : signature;
     const expectedSignature = this.generateSignature(secretKey, timestamp, payload);
-    
-    return this.constantTimeEqual(signature, expectedSignature);
+
+    return this.constantTimeEqual(suppliedSignature, expectedSignature);
   }
 
   private constantTimeEqual(a: string, b: string): boolean {
@@ -64,11 +63,8 @@ export class WebhookSigningService implements WebhookSigner {
       return false;
     }
 
-    let result = 0;
-    for (let i = 0; i < a.length; i++) {
-      result |= a.charCodeAt(i) ^ b.charCodeAt(i);
-    }
-
-    return result === 0;
+    return crypto.timingSafeEqual(Buffer.from(a), Buffer.from(b));
   }
+
+  constructor(private readonly config: ConfigService) {}
 }
