@@ -1,14 +1,17 @@
-import { Module } from "@nestjs/common";
-import { TENANTS_REPOSITORY } from "./application/ports/tenants.repository";
-import { CreateTenantUseCase } from "./application/use-cases/create-tenant.use-case";
-import { DeleteTenantUseCase } from "./application/use-cases/delete-tenant.use-case";
-import { GetTenantUseCase } from "./application/use-cases/get-tenant.use-case";
-import { ListTenantsUseCase } from "./application/use-cases/list-tenants.use-case";
-import { UpdateTenantUseCase } from "./application/use-cases/update-tenant.use-case";
-import { PrismaTenantsRepository } from "./infrastructure/persistence/prisma-tenants.repository";
-import { TenantsController } from "./presentation/http/tenants.controller";
+import { Module } from '@nestjs/common';
+import { TENANTS_REPOSITORY } from './application/ports/tenants.repository';
+import { CreateTenantUseCase } from './application/use-cases/create-tenant.use-case';
+import { DeleteTenantUseCase } from './application/use-cases/delete-tenant.use-case';
+import { GetTenantUseCase } from './application/use-cases/get-tenant.use-case';
+import { ListTenantsUseCase } from './application/use-cases/list-tenants.use-case';
+import { UpdateTenantUseCase } from './application/use-cases/update-tenant.use-case';
+import { PrismaTenantsRepository } from './infrastructure/persistence/prisma-tenants.repository';
+import { TenantsController } from './presentation/http/tenants.controller';
+import { SecurityModule } from '../security/security.module';
+import { RotateTenantApiKeyUseCase } from './application/use-cases/rotate-tenant-api-key.use-case';
 
 @Module({
+  imports: [SecurityModule],
   controllers: [TenantsController],
   providers: [
     CreateTenantUseCase,
@@ -16,6 +19,7 @@ import { TenantsController } from "./presentation/http/tenants.controller";
     GetTenantUseCase,
     UpdateTenantUseCase,
     DeleteTenantUseCase,
+    RotateTenantApiKeyUseCase,
     {
       provide: TENANTS_REPOSITORY,
       useClass: PrismaTenantsRepository,

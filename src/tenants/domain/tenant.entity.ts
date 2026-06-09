@@ -1,8 +1,9 @@
 export type TenantProps = {
   id: string;
   name: string;
-  secretKey: string;
+  apiKeyHash: string;
   rateLimit: number;
+  isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -18,8 +19,8 @@ export class Tenant {
     return this.props.name;
   }
 
-  get secretKey() {
-    return this.props.secretKey;
+  get apiKeyHash() {
+    return this.props.apiKeyHash;
   }
 
   get rateLimit() {
@@ -30,6 +31,10 @@ export class Tenant {
     return this.props.createdAt;
   }
 
+  get isActive() {
+    return this.props.isActive;
+  }
+
   get updatedAt() {
     return this.props.updatedAt;
   }
@@ -38,8 +43,8 @@ export class Tenant {
     return {
       id: this.id,
       name: this.name,
-      secretKey: this.secretKey,
       rateLimit: this.rateLimit,
+      isActive: this.isActive,
       createdAt: this.createdAt,
       updatedAt: this.updatedAt,
     };

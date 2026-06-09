@@ -1,12 +1,17 @@
-import { Tenant } from "../../domain/tenant.entity";
+import { Tenant } from '../../domain/tenant.entity';
 
-export const TENANTS_REPOSITORY = Symbol("TENANTS_REPOSITORY");
+export const TENANTS_REPOSITORY = Symbol('TENANTS_REPOSITORY');
 
 export type CreateTenantInput = {
   name: string;
-  secretKey: string;
+  apiKeyHash: string;
   rateLimit?: number;
-  endpointUrls?: string[];
+  endpoints?: Array<{
+    url: string;
+    secretKey: string;
+    eventTypes: string[];
+    rateLimit?: number;
+  }>;
 };
 
 export type UpdateTenantInput = {
@@ -37,4 +42,5 @@ export interface TenantsRepository {
   findById(id: string): Promise<Tenant | null>;
   update(id: string, input: UpdateTenantInput): Promise<Tenant>;
   delete(id: string): Promise<void>;
+  updateApiKeyHash(id: string, apiKeyHash: string): Promise<void>;
 }

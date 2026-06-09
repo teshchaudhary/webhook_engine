@@ -1,19 +1,20 @@
-import { Injectable } from "@nestjs/common";
-import { PrismaService } from "../../../../prisma/prisma.service";
-import { Tenant } from "../../domain/tenant.entity";
+import { Injectable } from '@nestjs/common';
+import { PrismaService } from '../../../../prisma/prisma.service';
+import { Tenant } from '../../domain/tenant.entity';
 import {
   CreateTenantInput,
   PaginatedTenants,
   TenantListQuery,
   TenantsRepository,
   UpdateTenantInput,
-} from "../../application/ports/tenants.repository";
+} from '../../application/ports/tenants.repository';
 
 type PrismaTenant = {
   id: string;
   name: string;
-  secretKey: string;
+  apiKeyHash: string;
   rateLimit: number;
+  isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -26,13 +27,20 @@ export class PrismaTenantsRepository implements TenantsRepository {
     const tenant = await this.prisma.tenant.create({
       data: {
         name: input.name,
-        secretKey: input.secretKey,
+        apiKeyHash: input.apiKeyHash,
         rateLimit: input.rateLimit,
-        endpoints: input.endpointUrls?.length
+        endpoints: input.endpoints?.length
           ? {
-              create: input.endpointUrls.map((url) => ({
-                url,
+              create: input.endpoints.map((endpoint) => ({
+                url: endpoint.url,
+                secretKey: endpoint.secretKey,
+                rateLimit: endpoint.rateLimit,
                 isActive: true,
+                subscriptions: {
+                  create: endpoint.eventTypes.map((eventType) => ({
+                    eventType,
+                  })),
+                },
               })),
             }
           : undefined,
@@ -47,11 +55,12 @@ export class PrismaTenantsRepository implements TenantsRepository {
 
     const [tenants, total] = await Promise.all([
       this.prisma.tenant.findMany({
-        orderBy: { createdAt: "desc" },
+        where: { isActive: true },
+        orderBy: { createdAt: 'desc' },
         skip,
         take: query.limit,
       }),
-      this.prisma.tenant.count(),
+      this.prisma.tenant.count({ where: { isActive: true } }),
     ]);
 
     return {
@@ -85,8 +94,16 @@ export class PrismaTenantsRepository implements TenantsRepository {
   }
 
   async delete(id: string): Promise<void> {
-    await this.prisma.tenant.delete({
+    await this.prisma.tenant.update({
       where: { id },
+      data: { isActive: false },
+    });
+  }
+
+  async updateApiKeyHash(id: string, apiKeyHash: string): Promise<void> {
+    await this.prisma.tenant.update({
+      where: { id },
+      data: { apiKeyHash },
     });
   }
 
