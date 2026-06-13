@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import { Module } from '@nestjs/common';
 import { BullModule } from '@nestjs/bullmq';
 import { AppController } from './app.controller';
@@ -11,6 +12,7 @@ import { SecurityModule } from './security/security.module';
 import { DeliveriesModule } from './deliveries/deliveries.module';
 import { TenantsModule } from './tenants/tenants.module';
 import { HealthModule } from './health/health.module';
+import { EndpointsModule } from './endpoints/endpoints.module';
 
 @Module({
   imports: [
@@ -20,8 +22,8 @@ import { HealthModule } from './health/health.module';
     RedisModule,
     BullModule.forRoot({
       connection: {
-        host: process.env.REDIS_HOST,
-        port: Number(process.env.REDIS_PORT),
+        host: process.env.REDIS_HOST ?? '127.0.0.1',
+        port: Number(process.env.REDIS_PORT ?? 6379),
       },
     }),
     EventsModule,
@@ -29,6 +31,7 @@ import { HealthModule } from './health/health.module';
     DeliveriesModule,
     TenantsModule,
     HealthModule,
+    EndpointsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
