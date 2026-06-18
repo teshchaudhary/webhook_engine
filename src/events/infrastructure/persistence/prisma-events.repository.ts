@@ -15,12 +15,19 @@ import {
 export class PrismaEventsRepository implements EventsRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  async createForTenant(
-    input: CreateWebhookEventInput,
-  ): Promise<CreateWebhookEventResult> {
+  async createForTenant(input: CreateWebhookEventInput): Promise<CreateWebhookEventResult> {
     const tenant = await this.prisma.tenant.findUnique({
       where: { id: input.tenantId },
-      include: { endpoints: { where: { isActive: true } } },
+      include: {
+        endpoints: {
+          where: {
+            isActive: true,
+            subscriptions: {
+              some: { eventType: { in: [input.type, '*'] } },
+            },
+          },
+        },
+      },
     });
 
     if (!tenant) {
@@ -34,6 +41,7 @@ export class PrismaEventsRepository implements EventsRepository {
           idempotencyKey: input.idempotencyKey,
           type: input.type,
           payload: input.payload as Prisma.InputJsonValue,
+          status: tenant.endpoints.length === 0 ? 'DONE' : 'PENDING',
         },
       });
 
@@ -45,6 +53,11 @@ export class PrismaEventsRepository implements EventsRepository {
 
       if (deliveriesData.length > 0) {
         await tx.delivery.createMany({ data: deliveriesData });
+        await tx.deliveryOutbox.createMany({
+          data: deliveriesData.map((delivery) => ({
+            deliveryId: delivery.id,
+          })),
+        });
       }
 
       return {
@@ -61,7 +74,7 @@ export class PrismaEventsRepository implements EventsRepository {
 
   async findAll(query: EventListQuery): Promise<PaginatedEvents> {
     const skip = (query.page - 1) * query.limit;
-    const where: any = {};
+    const where: Prisma.WebhookEventWhereInput = {};
 
     if (query.tenantId) {
       where.tenantId = query.tenantId;
@@ -128,9 +141,9 @@ export class PrismaEventsRepository implements EventsRepository {
     };
   }
 
-  findById(id: string) {
+  findById(id: string, tenantId: string) {
     return this.prisma.webhookEvent.findUnique({
-      where: { id },
+      where: { id, tenantId },
       include: {
         tenant: {
           select: {

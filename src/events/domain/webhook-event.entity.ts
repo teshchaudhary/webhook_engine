@@ -1,4 +1,4 @@
-import { EventStatus } from '@prisma/client';
+import { EventStatus } from './event-status';
 
 export type WebhookEventProps = {
   id: string;

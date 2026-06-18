@@ -8,19 +8,17 @@ import { ListEventsUseCase } from './application/use-cases/list-events.use-case'
 import { PrismaEventsRepository } from './infrastructure/persistence/prisma-events.repository';
 import { BullmqDeliveryQueue } from './infrastructure/queue/bullmq-delivery.queue';
 import { EventsController } from './presentation/http/events.controller';
+import { SecurityModule } from '../security/security.module';
 
 @Module({
   imports: [
+    SecurityModule,
     BullModule.registerQueue({
       name: 'webhook-deliveries',
       defaultJobOptions: {
         removeOnComplete: 100,
         removeOnFail: 50,
-        attempts: 5,
-        backoff: {
-          type: 'exponential',
-          delay: 1000,
-        },
+        attempts: 1,
       },
     }),
   ],

@@ -1,9 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import {
-  EventListQuery,
-  EVENTS_REPOSITORY,
-  EventsRepository,
-} from '../ports/events.repository';
+import { EventListQuery, EVENTS_REPOSITORY, EventsRepository } from '../ports/events.repository';
 
 @Injectable()
 export class ListEventsUseCase {
@@ -14,7 +10,7 @@ export class ListEventsUseCase {
 
   execute(query: Partial<EventListQuery>) {
     return this.eventsRepository.findAll({
-      tenantId: query.tenantId,
+      tenantId: query.tenantId as string,
       status: query.status,
       type: query.type,
       from: query.from,

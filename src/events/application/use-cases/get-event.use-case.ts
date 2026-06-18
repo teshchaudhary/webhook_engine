@@ -1,8 +1,5 @@
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
-import {
-  EVENTS_REPOSITORY,
-  EventsRepository,
-} from '../ports/events.repository';
+import { EVENTS_REPOSITORY, EventsRepository } from '../ports/events.repository';
 
 @Injectable()
 export class GetEventUseCase {
@@ -11,8 +8,8 @@ export class GetEventUseCase {
     private readonly eventsRepository: EventsRepository,
   ) {}
 
-  async execute(id: string) {
-    const event = await this.eventsRepository.findById(id);
+  async execute(id: string, tenantId: string) {
+    const event = await this.eventsRepository.findById(id, tenantId);
 
     if (!event) {
       throw new NotFoundException(`Event with ID ${id} not found`);

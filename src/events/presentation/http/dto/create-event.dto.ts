@@ -7,5 +7,5 @@ export class CreateEventDto {
 
   @IsObject()
   @IsNotEmpty()
-  payload: Record<string, any>;
+  payload: Record<string, unknown>;
 }

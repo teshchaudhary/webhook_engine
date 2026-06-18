@@ -1,4 +1,4 @@
-import { EventStatus } from '@prisma/client';
+import { EventStatus } from '../../domain/event-status';
 import { WebhookEvent } from '../../domain/webhook-event.entity';
 
 export const EVENTS_REPOSITORY = Symbol('EVENTS_REPOSITORY');
@@ -16,7 +16,7 @@ export type CreateWebhookEventResult = {
 };
 
 export type EventListQuery = {
-  tenantId?: string;
+  tenantId: string;
   status?: EventStatus;
   type?: string;
   from?: string;
@@ -40,5 +40,5 @@ export type PaginatedEvents = {
 export interface EventsRepository {
   createForTenant(input: CreateWebhookEventInput): Promise<CreateWebhookEventResult>;
   findAll(query: EventListQuery): Promise<PaginatedEvents>;
-  findById(id: string): Promise<unknown | null>;
+  findById(id: string, tenantId: string): Promise<unknown | null>;
 }

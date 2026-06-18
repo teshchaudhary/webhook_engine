@@ -1,12 +1,8 @@
-import { IsString, IsOptional, IsEnum, IsDateString } from 'class-validator';
+import { IsString, IsOptional, IsEnum, IsDateString, IsInt, Min, Max } from 'class-validator';
 import { Type } from 'class-transformer';
-import { EventStatus } from '@prisma/client';
+import { EventStatus } from '../../../domain/event-status';
 
 export class QueryEventsDto {
-  @IsOptional()
-  @IsString()
-  tenantId?: string;
-
   @IsOptional()
   @IsEnum(EventStatus)
   @Type(() => String)
@@ -26,9 +22,14 @@ export class QueryEventsDto {
 
   @IsOptional()
   @Type(() => Number)
+  @IsInt()
+  @Min(1)
   page?: number = 1;
 
   @IsOptional()
   @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(100)
   limit?: number = 20;
 }
