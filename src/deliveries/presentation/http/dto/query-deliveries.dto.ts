@@ -1,23 +1,19 @@
-import { IsString, IsOptional, IsEnum, IsDateString } from 'class-validator';
+import { IsOptional, IsEnum, IsDateString, IsInt, Min, Max, IsUUID } from 'class-validator';
 import { Type } from 'class-transformer';
-import { DeliveryStatus } from '@prisma/client';
+import { DeliveryStatus } from '../../../domain/delivery-status';
 
 export class QueryDeliveriesDto {
-  @IsOptional()
-  @IsString()
-  tenantId?: string;
-
   @IsOptional()
   @IsEnum(DeliveryStatus)
   @Type(() => String)
   status?: DeliveryStatus;
 
   @IsOptional()
-  @IsString()
+  @IsUUID()
   eventId?: string;
 
   @IsOptional()
-  @IsString()
+  @IsUUID()
   endpointId?: string;
 
   @IsOptional()
@@ -30,9 +26,14 @@ export class QueryDeliveriesDto {
 
   @IsOptional()
   @Type(() => Number)
+  @IsInt()
+  @Min(1)
   page?: number = 1;
 
   @IsOptional()
   @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(100)
   limit?: number = 20;
 }

@@ -14,7 +14,7 @@ export class ListDeliveriesUseCase {
 
   execute(query: Partial<DeliveryListQuery>) {
     return this.deliveriesRepository.findAll({
-      tenantId: query.tenantId,
+      tenantId: query.tenantId as string,
       status: query.status,
       eventId: query.eventId,
       endpointId: query.endpointId,

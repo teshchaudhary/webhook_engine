@@ -1,12 +1,5 @@
 import { Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
-import {
-  DELIVERIES_REPOSITORY,
-  DeliveriesRepository,
-} from '../ports/deliveries.repository';
-import {
-  DELIVERY_REPLAY_QUEUE,
-  DeliveryReplayQueue,
-} from '../ports/delivery-replay-queue.port';
+import { DELIVERIES_REPOSITORY, DeliveriesRepository } from '../ports/deliveries.repository';
 
 @Injectable()
 export class ReplayDeliveryUseCase {
@@ -15,12 +8,10 @@ export class ReplayDeliveryUseCase {
   constructor(
     @Inject(DELIVERIES_REPOSITORY)
     private readonly deliveriesRepository: DeliveriesRepository,
-    @Inject(DELIVERY_REPLAY_QUEUE)
-    private readonly replayQueue: DeliveryReplayQueue,
   ) {}
 
-  async execute(id: string) {
-    const delivery = await this.deliveriesRepository.findById(id);
+  async execute(id: string, tenantId: string) {
+    const delivery = await this.deliveriesRepository.findById(id, tenantId);
 
     if (!delivery) {
       throw new NotFoundException(`Delivery with ID ${id} not found`);
@@ -32,9 +23,8 @@ export class ReplayDeliveryUseCase {
     }
 
     const updatedDelivery = await this.deliveriesRepository.resetForReplay(id);
-    await this.replayQueue.enqueueReplay(id);
 
-    this.logger.log(`Delivery ${id} reset and enqueued for replay`);
+    this.logger.log(`Delivery ${id} reset and scheduled for replay`);
 
     return updatedDelivery;
   }

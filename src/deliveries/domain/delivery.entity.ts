@@ -1,4 +1,4 @@
-import { DeliveryStatus } from '@prisma/client';
+import { DeliveryStatus } from './delivery-status';
 
 export type DeliveryProps = {
   id: string;

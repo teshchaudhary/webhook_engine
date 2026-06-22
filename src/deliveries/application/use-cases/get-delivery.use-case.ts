@@ -1,8 +1,5 @@
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
-import {
-  DeliveriesRepository,
-  DELIVERIES_REPOSITORY,
-} from '../ports/deliveries.repository';
+import { DeliveriesRepository, DELIVERIES_REPOSITORY } from '../ports/deliveries.repository';
 
 @Injectable()
 export class GetDeliveryUseCase {
@@ -11,8 +8,8 @@ export class GetDeliveryUseCase {
     private readonly deliveriesRepository: DeliveriesRepository,
   ) {}
 
-  async execute(id: string) {
-    const delivery = await this.deliveriesRepository.findById(id);
+  async execute(id: string, tenantId: string) {
+    const delivery = await this.deliveriesRepository.findById(id, tenantId);
 
     if (!delivery) {
       throw new NotFoundException(`Delivery with ID ${id} not found`);

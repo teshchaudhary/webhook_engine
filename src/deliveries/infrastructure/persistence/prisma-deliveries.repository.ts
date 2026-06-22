@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../../prisma/prisma.service';
+import { Prisma } from '@prisma/client';
 import { Delivery } from '../../domain/delivery.entity';
 import {
   DeliveriesRepository,
@@ -13,7 +14,7 @@ export class PrismaDeliveriesRepository implements DeliveriesRepository {
 
   async findAll(query: DeliveryListQuery): Promise<PaginatedDeliveries> {
     const skip = (query.page - 1) * query.limit;
-    const where: any = {};
+    const where: Prisma.DeliveryWhereInput = {};
 
     if (query.tenantId) {
       where.event = { tenantId: query.tenantId };
@@ -86,9 +87,9 @@ export class PrismaDeliveriesRepository implements DeliveriesRepository {
     };
   }
 
-  findById(id: string) {
+  findById(id: string, tenantId: string) {
     return this.prisma.delivery.findUnique({
-      where: { id },
+      where: { id, event: { tenantId } },
       include: {
         event: {
           include: {
@@ -112,16 +113,24 @@ export class PrismaDeliveriesRepository implements DeliveriesRepository {
   }
 
   async resetForReplay(id: string): Promise<Delivery> {
-    const delivery = await this.prisma.delivery.update({
-      where: { id },
-      data: {
-        status: 'PENDING',
-        attempts: 0,
-        lastAttemptAt: null,
-        nextAttemptAt: new Date(),
-        httpStatusCode: null,
-        responseSnippet: null,
-      },
+    const delivery = await this.prisma.$transaction(async (tx) => {
+      const updated = await tx.delivery.update({
+        where: { id },
+        data: {
+          status: 'PENDING',
+          attempts: 0,
+          lastAttemptAt: null,
+          nextAttemptAt: new Date(),
+          httpStatusCode: null,
+          responseSnippet: null,
+        },
+      });
+      await tx.webhookEvent.update({
+        where: { id: updated.eventId },
+        data: { status: 'PROCESSING' },
+      });
+      await tx.deliveryOutbox.create({ data: { deliveryId: id } });
+      return updated;
     });
 
     return new Delivery(delivery);
