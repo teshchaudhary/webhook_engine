@@ -9,6 +9,6 @@ export interface DeliveryChannel {
   send(
     url: string,
     payload: Record<string, unknown>,
-    headers: Record<string, string>,
+    headers: Record<string, string | undefined>,
   ): Promise<DeliveryResult>;
 }
