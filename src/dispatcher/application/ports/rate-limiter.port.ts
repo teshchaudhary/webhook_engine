@@ -7,5 +7,5 @@ export type RateLimitResult = {
 };
 
 export interface RateLimiter {
-  checkRateLimit(tenantId: string, limit: number): Promise<RateLimitResult>;
+  checkRateLimit(scope: string, limit: number): Promise<RateLimitResult>;
 }
