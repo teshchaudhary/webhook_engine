@@ -1,9 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { RedisService } from '../../../common/redis.service';
-import {
-  HealthChecker,
-  HealthCheckResult,
-} from '../../application/ports/health-checker.port';
+import { HealthChecker, HealthCheckResult } from '../../application/ports/health-checker.port';
 
 @Injectable()
 export class RedisHealthChecker implements HealthChecker {
@@ -23,7 +20,6 @@ export class RedisHealthChecker implements HealthChecker {
       }
 
       const response = await this.redis.ping();
-      await this.redis.set('webhook-engine:boot', new Date().toISOString());
 
       return {
         status: response === 'PONG' ? 'ok' : 'error',

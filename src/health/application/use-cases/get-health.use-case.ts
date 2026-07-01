@@ -20,8 +20,7 @@ export class GetHealthUseCase {
       this.cacheHealthChecker.check(),
     ]);
 
-    const status =
-      database.status === 'ok' && redis.status === 'ok' ? 'ok' : 'degraded';
+    const status = database.status !== 'error' && redis.status !== 'error' ? 'ok' : 'degraded';
 
     return {
       status,
