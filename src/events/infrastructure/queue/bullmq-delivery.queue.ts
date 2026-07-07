@@ -38,6 +38,7 @@ export class BullmqDeliveryQueue implements DeliveryQueue, OnApplicationBootstra
     try {
       if (Date.now() - this.lastRecoveryAt >= 60_000) {
         await this.recoverStaleDeliveries();
+        await this.recoverStrandedPublishedOutbox();
         this.lastRecoveryAt = Date.now();
       }
       const jobs = await this.prisma.deliveryOutbox.findMany({
@@ -54,7 +55,7 @@ export class BullmqDeliveryQueue implements DeliveryQueue, OnApplicationBootstra
               deliveryId: outbox.deliveryId,
               expectedAttempt: outbox.attemptNumber,
             },
-            { jobId: `outbox-${outbox.id}`, attempts: 1 },
+            { jobId: this.jobId(outbox.id, outbox.attempts), attempts: 1 },
           );
           await this.prisma.deliveryOutbox.update({
             where: { id: outbox.id },
@@ -134,5 +135,47 @@ export class BullmqDeliveryQueue implements DeliveryQueue, OnApplicationBootstra
         }
       });
     }
+  }
+
+  private async recoverStrandedPublishedOutbox(): Promise<void> {
+    const published = await this.prisma.deliveryOutbox.findMany({
+      where: {
+        publishedAt: { not: null },
+        delivery: {
+          status: 'PENDING',
+        },
+      },
+      select: {
+        id: true,
+        attempts: true,
+        deliveryId: true,
+      },
+      take: 100,
+    });
+
+    for (const outbox of published) {
+      const currentJob = await this.deliveryQueue.getJob(this.jobId(outbox.id, outbox.attempts));
+      const legacyJob = await this.deliveryQueue.getJob(`outbox-${outbox.id}`);
+      const job = currentJob ?? legacyJob;
+      const state = job ? await job.getState() : 'missing';
+
+      if (state !== 'failed' && state !== 'missing') {
+        continue;
+      }
+
+      await this.prisma.deliveryOutbox.update({
+        where: { id: outbox.id },
+        data: {
+          publishedAt: null,
+          attempts: { increment: 1 },
+          lastError: `Recovered stranded ${state} queue job`,
+        },
+      });
+      this.logger.warn(`Recovered stranded outbox ${outbox.id} for delivery ${outbox.deliveryId}`);
+    }
+  }
+
+  private jobId(outboxId: string, publishAttempts: number): string {
+    return `outbox-${outboxId}-${publishAttempts}`;
   }
 }
