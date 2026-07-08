@@ -41,7 +41,7 @@ export class PrismaEventsRepository implements EventsRepository {
           idempotencyKey: input.idempotencyKey,
           type: input.type,
           payload: input.payload as Prisma.InputJsonValue,
-          status: tenant.endpoints.length === 0 ? 'DONE' : 'PENDING',
+          status: tenant.endpoints.length === 0 ? 'NO_SUBSCRIBERS' : 'PENDING',
         },
       });
 

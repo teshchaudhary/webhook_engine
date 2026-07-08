@@ -103,6 +103,7 @@ enum EventStatus {
   PROCESSING
   DONE
   FAILED
+  NO_SUBSCRIBERS
 }
 
 enum DeliveryStatus {
