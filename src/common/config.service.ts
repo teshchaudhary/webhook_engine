@@ -12,12 +12,25 @@ export interface SecurityConfig {
   signatureAlgorithm: string;
 }
 
+export interface RedisConfig {
+  host: string;
+  port: number;
+}
+
 export interface WebhookConfig {
   retry: RetryConfig;
   timeout: number;
   outboxPollInterval: number;
   staleDeliveryAge: number;
   security: SecurityConfig;
+}
+
+export function readWorkerConcurrency(): number {
+  return positiveIntegerFromEnv('WORKER_CONCURRENCY', 10);
+}
+
+export function readIsApiOnly(): boolean {
+  return (process.env.PROCESS_ROLE ?? 'all') === 'api';
 }
 
 @Injectable()
@@ -86,6 +99,45 @@ export class ConfigService {
     return 'dev-admin-key-change-me';
   }
 
+  get redisConfig(): RedisConfig {
+    return {
+      host: process.env.REDIS_HOST ?? '127.0.0.1',
+      port: this.positiveInteger('REDIS_PORT', 6379),
+    };
+  }
+
+  get port(): number {
+    return this.positiveInteger('PORT', 3000);
+  }
+
+  get processRole(): string {
+    return process.env.PROCESS_ROLE ?? 'all';
+  }
+
+  get isApiOnly(): boolean {
+    return this.processRole === 'api';
+  }
+
+  get isWorkerOnly(): boolean {
+    return this.processRole === 'worker';
+  }
+
+  get isProduction(): boolean {
+    return process.env.NODE_ENV === 'production';
+  }
+
+  get isTest(): boolean {
+    return process.env.NODE_ENV === 'test';
+  }
+
+  get maxRequestBodySize(): string {
+    return process.env.MAX_REQUEST_BODY_SIZE ?? '256kb';
+  }
+
+  get workerConcurrency(): number {
+    return this.positiveInteger('WORKER_CONCURRENCY', 10);
+  }
+
   get captureResponseBodies(): boolean {
     return process.env.CAPTURE_WEBHOOK_RESPONSE_BODIES === 'true';
   }
@@ -99,11 +151,7 @@ export class ConfigService {
   }
 
   private positiveInteger(name: string, fallback: number): number {
-    const value = Number(process.env[name] ?? fallback);
-    if (!Number.isInteger(value) || value <= 0) {
-      throw new Error(`${name} must be a positive integer`);
-    }
-    return value;
+    return positiveIntegerFromEnv(name, fallback);
   }
 
   private positiveNumber(name: string, fallback: number): number {
@@ -113,4 +161,12 @@ export class ConfigService {
     }
     return value;
   }
+}
+
+function positiveIntegerFromEnv(name: string, fallback: number): number {
+  const value = Number(process.env[name] ?? fallback);
+  if (!Number.isInteger(value) || value <= 0) {
+    throw new Error(`${name} must be a positive integer`);
+  }
+  return value;
 }

@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../../prisma/prisma.service';
+import { ConfigService } from '../../../common/config.service';
 import {
   HealthChecker,
   HealthCheckResult,
@@ -7,10 +8,13 @@ import {
 
 @Injectable()
 export class PrismaHealthChecker implements HealthChecker {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly config: ConfigService,
+  ) {}
 
   async check(): Promise<HealthCheckResult> {
-    if (process.env.NODE_ENV === 'test') {
+    if (this.config.isTest) {
       return {
         status: 'skipped',
         detail: 'database check disabled in test environment',

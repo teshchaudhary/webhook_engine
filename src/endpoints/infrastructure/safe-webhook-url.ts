@@ -22,7 +22,10 @@ function isPrivateAddress(address: string): boolean {
   );
 }
 
-export async function assertSafeWebhookUrl(rawUrl: string): Promise<string> {
+export async function assertSafeWebhookUrl(
+  rawUrl: string,
+  options: { allowLocalUrls: boolean },
+): Promise<string> {
   let url: URL;
   try {
     url = new URL(rawUrl);
@@ -33,7 +36,7 @@ export async function assertSafeWebhookUrl(rawUrl: string): Promise<string> {
   if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password) {
     throw new BadRequestException('Endpoint URL must be HTTP(S) without credentials');
   }
-  if (process.env.NODE_ENV !== 'production') {
+  if (options.allowLocalUrls) {
     return url.toString();
   }
   if (url.protocol !== 'https:') {

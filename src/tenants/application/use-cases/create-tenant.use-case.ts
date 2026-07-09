@@ -2,6 +2,7 @@ import { BadRequestException, Inject, Injectable } from '@nestjs/common';
 import { randomBytes } from 'crypto';
 import { generateApiKey, hashApiKey } from '../../../security/api-key';
 import { assertSafeWebhookUrl } from '../../../endpoints/infrastructure/safe-webhook-url';
+import { ConfigService } from '../../../common/config.service';
 import { TENANTS_REPOSITORY, TenantsRepository } from '../ports/tenants.repository';
 
 export type CreateTenantCommand = {
@@ -15,11 +16,14 @@ export class CreateTenantUseCase {
   constructor(
     @Inject(TENANTS_REPOSITORY)
     private readonly tenantsRepository: TenantsRepository,
+    private readonly config: ConfigService,
   ) {}
 
   async execute(command: CreateTenantCommand) {
     const normalizedUrls = await Promise.all(
-      (command.endpoints ?? []).map((endpoint) => assertSafeWebhookUrl(endpoint.url)),
+      (command.endpoints ?? []).map((endpoint) =>
+        assertSafeWebhookUrl(endpoint.url, { allowLocalUrls: !this.config.isProduction }),
+      ),
     );
     if (new Set(normalizedUrls).size !== normalizedUrls.length) {
       throw new BadRequestException('A tenant cannot contain duplicate endpoint URLs');

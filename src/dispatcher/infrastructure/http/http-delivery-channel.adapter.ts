@@ -13,7 +13,7 @@ export class HttpDeliveryChannelAdapter implements DeliveryChannel {
     payload: Record<string, unknown>,
     headers: Record<string, string | undefined>,
   ): Promise<DeliveryResult> {
-    await assertSafeWebhookUrl(url);
+    await assertSafeWebhookUrl(url, { allowLocalUrls: !this.config.isProduction });
     const response = await axios.post(url, payload, {
       headers: {
         'Content-Type': 'application/json',

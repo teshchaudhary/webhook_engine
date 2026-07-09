@@ -4,11 +4,13 @@ import { AppModule } from './app.module';
 import { json, Request, Response, NextFunction } from 'express';
 import { randomUUID } from 'crypto';
 import { ApiExceptionFilter } from './common/api-exception.filter';
+import { ConfigService } from './common/config.service';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, { bodyParser: false });
+  const config = app.get(ConfigService);
 
-  app.use(json({ limit: process.env.MAX_REQUEST_BODY_SIZE ?? '256kb' }));
+  app.use(json({ limit: config.maxRequestBodySize }));
   app.use((req: Request & { requestId?: string }, res: Response, next: NextFunction) => {
     req.requestId = req.header('x-request-id') ?? randomUUID();
     res.setHeader('x-request-id', req.requestId);
@@ -25,10 +27,10 @@ async function bootstrap() {
   app.enableShutdownHooks();
   app.useGlobalFilters(new ApiExceptionFilter());
 
-  if (process.env.PROCESS_ROLE === 'worker') {
+  if (config.isWorkerOnly) {
     await app.init();
     return;
   }
-  await app.listen(process.env.PORT ?? 3000);
+  await app.listen(config.port);
 }
 void bootstrap();

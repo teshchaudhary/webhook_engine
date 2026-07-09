@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { BullModule } from '@nestjs/bullmq';
+import { readIsApiOnly } from '../common/config.service';
 import { SecurityModule } from '../security/security.module';
 import { DELIVERY_CHANNEL } from './application/ports/delivery-channel.port';
 import { DISPATCH_DELIVERIES_REPOSITORY } from './application/ports/dispatch-deliveries.repository';
@@ -11,7 +12,7 @@ import { PrismaDispatchDeliveriesRepository } from './infrastructure/persistence
 import { DispatcherWorker } from './infrastructure/queue/dispatcher.worker';
 import { RedisRateLimiterAdapter } from './infrastructure/rate-limiting/redis-rate-limiter.adapter';
 
-const workerProviders = process.env.PROCESS_ROLE === 'api' ? [] : [DispatcherWorker];
+const workerProviders = readIsApiOnly() ? [] : [DispatcherWorker];
 
 @Module({
   imports: [

@@ -1,13 +1,17 @@
 import { Injectable } from '@nestjs/common';
+import { ConfigService } from '../../../common/config.service';
 import { RedisService } from '../../../common/redis.service';
 import { HealthChecker, HealthCheckResult } from '../../application/ports/health-checker.port';
 
 @Injectable()
 export class RedisHealthChecker implements HealthChecker {
-  constructor(private readonly redis: RedisService) {}
+  constructor(
+    private readonly redis: RedisService,
+    private readonly config: ConfigService,
+  ) {}
 
   async check(): Promise<HealthCheckResult> {
-    if (process.env.NODE_ENV === 'test') {
+    if (this.config.isTest) {
       return {
         status: 'skipped',
         detail: 'redis check disabled in test environment',
