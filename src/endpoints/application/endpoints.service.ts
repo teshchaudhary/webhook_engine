@@ -1,59 +1,36 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { randomBytes } from 'crypto';
-import { PrismaService } from '../../../prisma/prisma.service';
+import { ConfigService } from '../../common/config.service';
+import {
+  ENDPOINTS_REPOSITORY,
+  EndpointInput,
+  EndpointsRepository,
+  EndpointUpdate,
+} from './ports/endpoints.repository';
 import { assertSafeWebhookUrl } from '../infrastructure/safe-webhook-url';
-
-type EndpointInput = {
-  url: string;
-  eventTypes: string[];
-  rateLimit?: number;
-};
-
-type EndpointUpdate = Partial<EndpointInput> & { isActive?: boolean };
 
 @Injectable()
 export class EndpointsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    @Inject(ENDPOINTS_REPOSITORY)
+    private readonly endpoints: EndpointsRepository,
+    private readonly config: ConfigService,
+  ) {}
 
   list(tenantId: string) {
-    return this.prisma.endpoint.findMany({
-      where: { tenantId },
-      select: {
-        id: true,
-        url: true,
-        isActive: true,
-        rateLimit: true,
-        createdAt: true,
-        updatedAt: true,
-        subscriptions: { select: { eventType: true } },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
+    return this.endpoints.list(tenantId);
   }
 
   async create(tenantId: string, input: EndpointInput) {
-    const normalizedUrl = await assertSafeWebhookUrl(input.url);
+    const normalizedUrl = await assertSafeWebhookUrl(input.url, {
+      allowLocalUrls: !this.config.isProduction,
+    });
     const secretKey = this.generateSecret();
     try {
-      const endpoint = await this.prisma.endpoint.create({
-        data: {
-          tenantId,
-          url: normalizedUrl,
-          secretKey,
-          rateLimit: input.rateLimit,
-          subscriptions: {
-            create: [...new Set(input.eventTypes)].map((eventType) => ({
-              eventType,
-            })),
-          },
-        },
-        select: {
-          id: true,
-          url: true,
-          isActive: true,
-          rateLimit: true,
-          subscriptions: { select: { eventType: true } },
-        },
+      const endpoint = await this.endpoints.create(tenantId, {
+        ...input,
+        url: normalizedUrl,
+        secretKey,
       });
       return { ...endpoint, secretKey };
     } catch (error: unknown) {
@@ -67,69 +44,29 @@ export class EndpointsService {
   async update(tenantId: string, id: string, input: EndpointUpdate) {
     await this.requireOwned(tenantId, id);
     if (input.url) {
-      input.url = await assertSafeWebhookUrl(input.url);
+      input.url = await assertSafeWebhookUrl(input.url, {
+        allowLocalUrls: !this.config.isProduction,
+      });
     }
 
-    return this.prisma.$transaction(async (tx) => {
-      if (input.eventTypes) {
-        await tx.endpointSubscription.deleteMany({ where: { endpointId: id } });
-        await tx.endpointSubscription.createMany({
-          data: [...new Set(input.eventTypes)].map((eventType) => ({
-            endpointId: id,
-            eventType,
-          })),
-        });
-      }
-      return tx.endpoint.update({
-        where: { id },
-        data: {
-          url: input.url,
-          isActive: input.isActive,
-          rateLimit: input.rateLimit,
-        },
-        select: {
-          id: true,
-          url: true,
-          isActive: true,
-          rateLimit: true,
-          subscriptions: { select: { eventType: true } },
-        },
-      });
-    });
+    return this.endpoints.update(tenantId, id, input);
   }
 
   async remove(tenantId: string, id: string): Promise<void> {
     await this.requireOwned(tenantId, id);
-    await this.prisma.endpoint.update({
-      where: { id },
-      data: { isActive: false },
-    });
+    await this.endpoints.softDelete(id);
   }
 
   async rotateSecret(tenantId: string, id: string) {
     await this.requireOwned(tenantId, id);
     const secretKey = this.generateSecret();
-    const current = await this.prisma.endpoint.findUniqueOrThrow({
-      where: { id },
-      select: { secretKey: true },
-    });
     const previousSecretExpiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
-    await this.prisma.endpoint.update({
-      where: { id },
-      data: {
-        secretKey,
-        previousSecretKey: current.secretKey,
-        previousSecretExpiresAt,
-      },
-    });
+    await this.endpoints.rotateSecret(id, secretKey, previousSecretExpiresAt);
     return { endpointId: id, secretKey, previousSecretExpiresAt };
   }
 
   private async requireOwned(tenantId: string, id: string): Promise<void> {
-    const endpoint = await this.prisma.endpoint.findFirst({
-      where: { id, tenantId },
-      select: { id: true },
-    });
+    const endpoint = await this.endpoints.findOwned(tenantId, id);
     if (!endpoint) {
       throw new NotFoundException('Endpoint not found');
     }
