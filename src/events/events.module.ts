@@ -7,6 +7,8 @@ import { IngestEventUseCase } from './application/use-cases/ingest-event.use-cas
 import { ListEventsUseCase } from './application/use-cases/list-events.use-case';
 import { PrismaEventsRepository } from './infrastructure/persistence/prisma-events.repository';
 import { BullmqDeliveryQueue } from './infrastructure/queue/bullmq-delivery.queue';
+import { DeliveryMaintenanceService } from './infrastructure/queue/delivery-maintenance.service';
+import { DeliveryOutboxPublisherService } from './infrastructure/queue/delivery-outbox-publisher.service';
 import { EventsController } from './presentation/http/events.controller';
 import { SecurityModule } from '../security/security.module';
 
@@ -27,6 +29,8 @@ import { SecurityModule } from '../security/security.module';
     IngestEventUseCase,
     ListEventsUseCase,
     GetEventUseCase,
+    DeliveryMaintenanceService,
+    DeliveryOutboxPublisherService,
     {
       provide: EVENTS_REPOSITORY,
       useClass: PrismaEventsRepository,
