@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../../prisma/prisma.service';
 import { Prisma } from '@prisma/client';
+import { calculateEventStatus } from '../../application/services/event-status.policy';
 import {
   DeliveryFailureInput,
   DispatchDeliveriesRepository,
@@ -143,16 +144,10 @@ export class PrismaDispatchDeliveriesRepository implements DispatchDeliveriesRep
       where: { eventId },
       select: { status: true },
     });
-    const unfinished = deliveries.some((delivery) =>
-      ['PENDING', 'PROCESSING', 'FAILED'].includes(delivery.status),
-    );
-    const hasTerminalFailure = deliveries.some((delivery) =>
-      ['DLQ', 'CANCELLED'].includes(delivery.status),
-    );
     await tx.webhookEvent.update({
       where: { id: eventId },
       data: {
-        status: unfinished ? 'PROCESSING' : hasTerminalFailure ? 'FAILED' : 'DONE',
+        status: calculateEventStatus(deliveries.map((delivery) => delivery.status)),
       },
     });
   }
