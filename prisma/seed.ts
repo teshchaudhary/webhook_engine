@@ -9,7 +9,7 @@ async function main() {
     throw new Error('DATABASE_URL is missing from your .env file');
   }
 
-  const adapter = new PrismaPg({ connectionString } as any);
+  const adapter = new PrismaPg({ connectionString });
   const prisma = new PrismaClient({ adapter });
 
   try {
@@ -17,7 +17,7 @@ async function main() {
 
     const tenant = await prisma.tenant.create({
       data: {
-        name: 'Tenant Name',
+        name: 'Tenant A',
         apiKeyHash: createHash('sha256').update(apiKey).digest('hex'),
         endpoints: {
           create: [
