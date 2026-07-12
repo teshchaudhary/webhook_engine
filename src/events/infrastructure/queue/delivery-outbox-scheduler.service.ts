@@ -1,11 +1,13 @@
+import { Injectable, Logger, OnApplicationBootstrap, OnModuleDestroy } from '@nestjs/common';
 import { DeliveryQueue } from '../../application/ports/delivery-queue.port';
-import { Injectable, OnApplicationBootstrap, OnModuleDestroy, Logger } from '@nestjs/common';
 import { ConfigService } from '../../../common/config.service';
 import { DeliveryOutboxPublisherService } from './delivery-outbox-publisher.service';
 
 @Injectable()
-export class BullmqDeliveryQueue implements DeliveryQueue, OnApplicationBootstrap, OnModuleDestroy {
-  private readonly logger = new Logger(BullmqDeliveryQueue.name);
+export class DeliveryOutboxSchedulerService
+  implements DeliveryQueue, OnApplicationBootstrap, OnModuleDestroy
+{
+  private readonly logger = new Logger(DeliveryOutboxSchedulerService.name);
   private timer?: NodeJS.Timeout;
 
   constructor(
@@ -40,3 +42,4 @@ export class BullmqDeliveryQueue implements DeliveryQueue, OnApplicationBootstra
     }
   }
 }
+

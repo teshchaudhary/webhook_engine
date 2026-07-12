@@ -2,6 +2,7 @@ import { InjectQueue } from '@nestjs/bullmq';
 import { Injectable } from '@nestjs/common';
 import { Queue } from 'bullmq';
 import { PrismaService } from '../../../../prisma/prisma.service';
+import { WEBHOOK_DELIVERY_QUEUE } from '../../../queue/webhook-delivery-queue.constants';
 import { DeliveryMaintenanceService } from './delivery-maintenance.service';
 
 @Injectable()
@@ -10,7 +11,7 @@ export class DeliveryOutboxPublisherService {
   private lastMaintenanceAt = 0;
 
   constructor(
-    @InjectQueue('webhook-deliveries')
+    @InjectQueue(WEBHOOK_DELIVERY_QUEUE)
     private readonly deliveryQueue: Queue,
     private readonly prisma: PrismaService,
     private readonly maintenance: DeliveryMaintenanceService,

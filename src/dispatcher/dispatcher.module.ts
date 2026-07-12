@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
-import { BullModule } from '@nestjs/bullmq';
 import { readIsApiOnly } from '../common/config.service';
+import { WebhookDeliveryQueueModule } from '../queue/webhook-delivery-queue.module';
 import { SecurityModule } from '../security/security.module';
 import { DELIVERY_CHANNEL } from './application/ports/delivery-channel.port';
 import { DISPATCH_DELIVERIES_REPOSITORY } from './application/ports/dispatch-deliveries.repository';
@@ -17,9 +17,7 @@ const workerProviders = readIsApiOnly() ? [] : [DispatcherWorker];
 @Module({
   imports: [
     SecurityModule,
-    BullModule.registerQueue({
-      name: 'webhook-deliveries',
-    }),
+    WebhookDeliveryQueueModule,
   ],
   providers: [
     ...workerProviders,

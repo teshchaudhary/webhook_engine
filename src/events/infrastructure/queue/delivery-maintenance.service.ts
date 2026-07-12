@@ -3,13 +3,14 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Queue } from 'bullmq';
 import { PrismaService } from '../../../../prisma/prisma.service';
 import { ConfigService } from '../../../common/config.service';
+import { WEBHOOK_DELIVERY_QUEUE } from '../../../queue/webhook-delivery-queue.constants';
 
 @Injectable()
 export class DeliveryMaintenanceService {
   private readonly logger = new Logger(DeliveryMaintenanceService.name);
 
   constructor(
-    @InjectQueue('webhook-deliveries')
+    @InjectQueue(WEBHOOK_DELIVERY_QUEUE)
     private readonly deliveryQueue: Queue,
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,

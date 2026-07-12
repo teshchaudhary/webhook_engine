@@ -1,5 +1,4 @@
 import { Module } from '@nestjs/common';
-import { BullModule } from '@nestjs/bullmq';
 import { PrismaModule } from '../../prisma/prisma.module';
 import { DELIVERIES_REPOSITORY } from './application/ports/deliveries.repository';
 import { GetDeliveryUseCase } from './application/use-cases/get-delivery.use-case';
@@ -13,9 +12,6 @@ import { SecurityModule } from '../security/security.module';
   imports: [
     PrismaModule,
     SecurityModule,
-    BullModule.registerQueue({
-      name: 'webhook-deliveries',
-    }),
   ],
   controllers: [DeliveriesController],
   providers: [
