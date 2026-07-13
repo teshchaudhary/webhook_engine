@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import axios from 'axios';
 import { DeliveryChannel, DeliveryResult } from '../../application/ports/delivery-channel.port';
 import { ConfigService } from '../../../common/config.service';
-import { assertSafeWebhookUrl } from '../../../endpoints/infrastructure/safe-webhook-url';
+import { assertSafeWebhookUrl } from '../../../security/safe-webhook-url';
 
 @Injectable()
 export class HttpDeliveryChannelAdapter implements DeliveryChannel {

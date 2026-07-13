@@ -1,6 +1,6 @@
 import { BadRequestException } from '@nestjs/common';
-import { isIP } from 'net';
 import { lookup } from 'dns/promises';
+import { isIP } from 'net';
 
 function isPrivateAddress(address: string): boolean {
   if (address === '::1' || address.startsWith('fc') || address.startsWith('fd')) {
@@ -51,3 +51,4 @@ export async function assertSafeWebhookUrl(
   }
   return url.toString();
 }
+

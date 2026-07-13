@@ -1,7 +1,7 @@
 import { BadRequestException, Inject, Injectable } from '@nestjs/common';
 import { randomBytes } from 'crypto';
 import { generateApiKey, hashApiKey } from '../../../security/api-key';
-import { assertSafeWebhookUrl } from '../../../endpoints/infrastructure/safe-webhook-url';
+import { assertSafeWebhookUrl } from '../../../security/safe-webhook-url';
 import { ConfigService } from '../../../common/config.service';
 import { TENANTS_REPOSITORY, TenantsRepository } from '../ports/tenants.repository';
 

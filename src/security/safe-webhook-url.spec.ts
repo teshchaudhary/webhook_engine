@@ -5,9 +5,7 @@ describe('assertSafeWebhookUrl', () => {
   it('normalizes valid URLs', async () => {
     await expect(
       assertSafeWebhookUrl('https://example.com/webhooks', { allowLocalUrls: true }),
-    ).resolves.toBe(
-      'https://example.com/webhooks',
-    );
+    ).resolves.toBe('https://example.com/webhooks');
   });
 
   it('rejects credentials and unsupported protocols', async () => {
@@ -19,3 +17,4 @@ describe('assertSafeWebhookUrl', () => {
     ).rejects.toBeInstanceOf(BadRequestException);
   });
 });
+

@@ -11,7 +11,11 @@ import {
   Post,
   UseGuards,
 } from '@nestjs/common';
-import { EndpointsService } from '../../application/endpoints.service';
+import { CreateEndpointUseCase } from '../../application/use-cases/create-endpoint.use-case';
+import { DeleteEndpointUseCase } from '../../application/use-cases/delete-endpoint.use-case';
+import { ListEndpointsUseCase } from '../../application/use-cases/list-endpoints.use-case';
+import { RotateEndpointSecretUseCase } from '../../application/use-cases/rotate-endpoint-secret.use-case';
+import { UpdateEndpointUseCase } from '../../application/use-cases/update-endpoint.use-case';
 import { CurrentTenantId } from '../../../security/current-tenant.decorator';
 import { TenantApiKeyGuard } from '../../../security/tenant-api-key.guard';
 import { CreateEndpointDto, UpdateEndpointDto } from './dto/endpoint.dto';
@@ -19,16 +23,22 @@ import { CreateEndpointDto, UpdateEndpointDto } from './dto/endpoint.dto';
 @Controller('api/v1/endpoints')
 @UseGuards(TenantApiKeyGuard)
 export class EndpointsController {
-  constructor(private readonly endpoints: EndpointsService) {}
+  constructor(
+    private readonly listEndpoints: ListEndpointsUseCase,
+    private readonly createEndpoint: CreateEndpointUseCase,
+    private readonly updateEndpoint: UpdateEndpointUseCase,
+    private readonly deleteEndpoint: DeleteEndpointUseCase,
+    private readonly rotateEndpointSecret: RotateEndpointSecretUseCase,
+  ) {}
 
   @Get()
   list(@CurrentTenantId() tenantId: string) {
-    return this.endpoints.list(tenantId);
+    return this.listEndpoints.execute(tenantId);
   }
 
   @Post()
   create(@CurrentTenantId() tenantId: string, @Body() dto: CreateEndpointDto) {
-    return this.endpoints.create(tenantId, dto);
+    return this.createEndpoint.execute(tenantId, dto);
   }
 
   @Patch(':id')
@@ -37,17 +47,17 @@ export class EndpointsController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateEndpointDto,
   ) {
-    return this.endpoints.update(tenantId, id, dto);
+    return this.updateEndpoint.execute(tenantId, id, dto);
   }
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
   remove(@CurrentTenantId() tenantId: string, @Param('id', ParseUUIDPipe) id: string) {
-    return this.endpoints.remove(tenantId, id);
+    return this.deleteEndpoint.execute(tenantId, id);
   }
 
   @Post(':id/rotate-secret')
   rotateSecret(@CurrentTenantId() tenantId: string, @Param('id', ParseUUIDPipe) id: string) {
-    return this.endpoints.rotateSecret(tenantId, id);
+    return this.rotateEndpointSecret.execute(tenantId, id);
   }
 }
